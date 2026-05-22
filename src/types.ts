@@ -30,3 +30,19 @@ export interface MonitoredClass {
   syncsToday: number;
   color: string;
 }
+
+// --- Auth Types ---
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  avatar?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+export type AuthView = 'login' | 'register' | 'forgot';

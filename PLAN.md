@@ -43,13 +43,13 @@
 
 ## Phase 4: UI Polish & Parent Features
 
-- [ ] Parent dashboard view (read-only summary of child's tasks)
-- [ ] Weekly digest email / in-app notification (simulated)
-- [ ] Red-flag alerts for overdue assignments
-- [ ] Task completion tracking with progress charts
-- [ ] Focus timer / Pomodoro integration
-- [ ] Dark mode toggle
-- [ ] Mobile-responsive bottom nav refinements
+- [x] Parent dashboard view (read-only summary of child's tasks)
+- [x] Weekly digest card with stats + red flags in Family view
+- [x] Red-flag alerts for overdue assignments (banner + badges)
+- [x] Task completion tracking with animated progress bar
+- [x] Focus timer / Pomodoro integration with circular progress
+- [x] Dark mode toggle with full Material You color overrides
+- [x] Family tab added to bottom nav + sidebar with icon navigation
 
 ## Phase 5: Deployment & DevOps
 

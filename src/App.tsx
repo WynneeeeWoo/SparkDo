@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
+import { useSync } from './contexts/SyncContext';
 import AuthForms from './components/AuthForms';
 import { View, Task, Deadline, MonitoredClass, User as UserType } from './types';
 import { TASKS, DEADLINES, CLASSES } from './constants';
@@ -142,7 +143,7 @@ const FAB = ({ onClick }: { onClick?: () => void }) => (
 
 // --- View Components ---
 
-const DashboardView = ({ onAssignmentClick, user }: { onAssignmentClick: () => void, user: UserType }) => {
+const DashboardView = ({ onAssignmentClick, user, onSync, isSyncing, lastSyncedAt }: { onAssignmentClick: () => void, user: UserType, onSync: () => void, isSyncing: boolean, lastSyncedAt: string | null }) => {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
@@ -162,9 +163,13 @@ const DashboardView = ({ onAssignmentClick, user }: { onAssignmentClick: () => v
               {greeting},<br /><span className="text-primary-fixed">{user.displayName || 'Archivist'}</span>
             </h2>
           </div>
-          <button className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-8 py-4 rounded-full font-bold flex items-center gap-3 shadow-lg hover:shadow-primary/20 transition-all active:scale-95">
-            <RefreshCw size={20} />
-            Quick-Sync Data
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-8 py-4 rounded-full font-bold flex items-center gap-3 shadow-lg hover:shadow-primary/20 transition-all active:scale-95 disabled:opacity-70"
+          >
+            <RefreshCw size={20} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : lastSyncedAt ? 'Quick-Sync Data' : 'Sync Teams Data'}
           </button>
         </div>
       </section>
@@ -281,7 +286,33 @@ const DashboardView = ({ onAssignmentClick, user }: { onAssignmentClick: () => v
   );
 };
 
-const TasksView = () => (
+function formatDueDate(iso: string): string {
+  if (!iso) return 'No due date';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
+  if (diffDays === 0) return 'Due today';
+  if (diffDays === 1) return 'Due tomorrow';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function formatSyncTime(iso: string | null, isSyncing: boolean): string {
+  if (isSyncing) return 'Syncing now...';
+  if (!iso) return 'Off-sync';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Synced just now';
+  if (mins < 60) return `Synced ${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Synced ${hours}h ago`;
+  return `Synced ${Math.floor(hours / 24)}d ago`;
+}
+
+const TasksView = ({ assignments, isSyncing, lastSyncedAt }: { assignments: any[], isSyncing: boolean, lastSyncedAt: string | null }) => {
+  const displayTasks = assignments.length > 0 ? assignments : TASKS;
+  return (
   <motion.div
     initial={{ opacity: 0, x: 20 }}
     animate={{ opacity: 1, x: 0 }}
@@ -295,13 +326,13 @@ const TasksView = () => (
           <p className="text-on-surface-variant font-medium mt-1 uppercase tracking-widest text-[10px]">Today, October 24th</p>
         </div>
         <div className="flex items-center gap-2 bg-white/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-outline-variant/10">
-          <RefreshCw className="text-primary" size={16} />
-          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Teams Synced 2m ago</span>
+          <RefreshCw className={`text-primary ${isSyncing ? 'animate-spin' : ''}`} size={16} />
+          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{formatSyncTime(lastSyncedAt, isSyncing)}</span>
         </div>
       </div>
 
       <div className="space-y-4">
-        {TASKS.map((task) => (
+        {displayTasks.map((task: any) => (
           <div
             key={task.id}
             className={`group relative bg-white rounded-3xl p-6 shadow-sm border border-surface-container-low hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
@@ -321,12 +352,18 @@ const TasksView = () => (
                   }`}>
                     {task.priority}
                   </span>
-                  <span className={`text-on-surface-variant text-[11px] font-semibold ${task.completed ? 'line-through' : ''}`}>Due {task.dueTime}</span>
+                  <span className={`text-on-surface-variant text-[11px] font-semibold ${task.completed ? 'line-through' : ''}`}>{'dueDateTime' in task ? formatDueDate(task.dueDateTime) : `Due ${task.dueTime}`}</span>
                 </div>
                 <h3 className={`text-lg font-bold leading-tight group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
                 <p className="text-on-surface-variant/80 text-sm mt-1">{task.description}</p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
+                  {'className' in task && task.className && (
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-[#4c6ef5]">
+                      <Users size={14} />
+                      {task.className}
+                    </div>
+                  )}
                   {task.attachments && (
                     <div className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant">
                       <Share2 size={14} />
@@ -339,12 +376,18 @@ const TasksView = () => (
                       {task.group}
                     </div>
                   )}
-                  {task.tags?.map(tag => (
+                  {task.tags?.map((tag: string) => (
                     <div key={tag} className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant">
                       <FileText size={14} />
                       {tag}
                     </div>
                   ))}
+                  {'maxPoints' in task && task.maxPoints && (
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant">
+                      <AlertCircle size={14} />
+                      {task.maxPoints} pts
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -413,9 +456,18 @@ const TasksView = () => (
       </div>
     </aside>
   </motion.div>
-);
+  );
+};
 
-const CalendarView = () => (
+const CalendarView = ({ events }: { events: any[] }) => {
+  const eventDays = new Set(events.map(e => new Date(e.startDateTime).getDate()));
+  const eventDayColors: Record<number, string> = {};
+  events.forEach(e => {
+    const d = new Date(e.startDateTime).getDate();
+    eventDayColors[d] = 'bg-primary-container';
+  });
+
+  return (
   <motion.div
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
@@ -444,9 +496,11 @@ const CalendarView = () => (
         <div className="grid grid-cols-7 gap-2">
           {Array.from({ length: 35 }).map((_, i) => {
             const day = i - 4; // Start from Nov 1st
-            const isToday = day === 14;
-            const hasEvent = [4, 7, 12, 20, 25].includes(day);
-            const color = day === 4 || day === 20 ? 'bg-tertiary-container' :
+            const isToday = day === new Date().getDate();
+            const hasHardcodedEvent = [4, 7, 12, 20, 25].includes(day);
+            const hasSyncedEvent = eventDays.has(day);
+            const color = hasSyncedEvent ? (eventDayColors[day] || 'bg-primary-container') :
+                          day === 4 || day === 20 ? 'bg-tertiary-container' :
                           day === 7 ? 'bg-primary-container' :
                           'bg-red-400';
 
@@ -462,7 +516,7 @@ const CalendarView = () => (
                 }`}
               >
                 <span className={`font-bold ${isToday ? 'text-white' : 'text-on-surface'}`}>{day}</span>
-                {hasEvent && !isToday && (
+                {(hasHardcodedEvent || hasSyncedEvent) && !isToday && (
                   <div className={`absolute bottom-3 left-3 right-3 h-1.5 ${color} rounded-full`} />
                 )}
                 {isToday && (
@@ -517,9 +571,12 @@ const CalendarView = () => (
       </aside>
     </div>
   </motion.div>
-);
+  );
+};
 
-const ProfileView = ({ user, onLogout }: { user: UserType; onLogout: () => void }) => (
+const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt }: { user: UserType; onLogout: () => void; classes: any[]; onSync: () => void; isSyncing: boolean; lastSyncedAt: string | null }) => {
+  const displayClasses = classes.length > 0 ? classes : CLASSES;
+  return (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -541,9 +598,13 @@ const ProfileView = ({ user, onLogout }: { user: UserType; onLogout: () => void 
             </div>
           </div>
           <div className="h-8 w-px bg-outline-variant/20 mx-2"></div>
-          <button className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all active:scale-95">
-            <RefreshCw size={16} />
-            Re-sync Now
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all active:scale-95 disabled:opacity-70"
+          >
+            <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Syncing...' : 'Re-sync Now'}
           </button>
         </div>
       </div>
@@ -576,7 +637,7 @@ const ProfileView = ({ user, onLogout }: { user: UserType; onLogout: () => void 
             <Share2 className="text-primary" size={30} />
           </div>
           <h3 className="text-2xl font-bold mb-2">Sync Engine</h3>
-          <p className="text-on-surface-variant leading-relaxed">Continuous monitoring active. Last successful fetch was 4 minutes ago from the Teams Assignment API.</p>
+          <p className="text-on-surface-variant leading-relaxed">{lastSyncedAt ? `Continuous monitoring active. Last successful fetch was ${formatSyncTime(lastSyncedAt, false)}.` : 'Connect your Microsoft account to start monitoring Teams assignments.'}</p>
         </div>
         <div className="mt-12 bg-white/50 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
           <div className="flex justify-between items-center mb-2">
@@ -593,14 +654,14 @@ const ProfileView = ({ user, onLogout }: { user: UserType; onLogout: () => void 
         <div className="flex justify-between items-center mb-8">
           <div>
             <h3 className="text-2xl font-bold">Monitored Classes</h3>
-            <p className="text-sm text-outline">8 Active Educational Channels</p>
+            <p className="text-sm text-outline">{displayClasses.length} Active Educational Channel{displayClasses.length !== 1 ? 's' : ''}</p>
           </div>
           <button className="text-primary font-bold text-sm flex items-center gap-1 hover:underline">
             Manage Sources <ChevronRight size={16} />
           </button>
         </div>
         <div className="space-y-4">
-          {CLASSES.map((cls) => (
+          {displayClasses.map((cls: any) => (
             <div key={cls.id} className="group/item flex items-center justify-between p-4 rounded-2xl bg-surface-container-low hover:bg-surface-container-high transition-all">
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 bg-white rounded-xl flex items-center justify-center ${cls.color} font-bold shadow-sm`}>
@@ -647,6 +708,7 @@ const ProfileView = ({ user, onLogout }: { user: UserType; onLogout: () => void 
     </div>
   </motion.div>
 );
+};
 
 const AssignmentDetailView = ({ onBack }: { onBack: () => void }) => (
   <motion.div
@@ -793,7 +855,8 @@ function AuthLoading() {
 // --- Main App ---
 
 export default function App() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout, msalAccount } = useAuth();
+  const { assignments, classes, events, isSyncing, lastSyncedAt, sync } = useSync();
   const [view, setView] = useState<View>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -807,12 +870,12 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'home': return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} />;
-      case 'tasks': return <TasksView />;
-      case 'calendar': return <CalendarView />;
-      case 'profile': return <ProfileView user={user} onLogout={logout} />;
+      case 'home': return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
+      case 'tasks': return <TasksView assignments={assignments} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
+      case 'calendar': return <CalendarView events={events} />;
+      case 'profile': return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
       case 'assignment': return <AssignmentDetailView onBack={() => setView('home')} />;
-      default: return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} />;
+      default: return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
     }
   };
 

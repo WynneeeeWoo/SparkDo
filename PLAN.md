@@ -1,0 +1,100 @@
+# SparkDo — Development Plan & Checklist
+
+> A student & parent scholastic planner that automatically pulls homework and activities from Microsoft Teams.
+
+---
+
+## Phase 1: Authentication & Microsoft Teams Integration
+
+- [x] Install `@azure/msal-browser` and `@azure/msal-react`
+- [x] Create `src/config/msalConfig.ts` — env-based Azure AD config
+- [x] Create `src/services/graphApi.ts` — Microsoft Graph API helpers
+- [x] Update `src/contexts/AuthContext.tsx` — dual local + MSAL auth with admin consent flow
+- [x] Update `src/components/AuthForms.tsx` — "Sign in with Microsoft" button + admin consent UI
+- [x] Update `src/main.tsx` — conditional `MsalProvider` wrapper
+- [x] Update `.env.example` — MSAL env variables
+- [x] Fix `tsconfig.json` — add Vite client types for `import.meta.env`
+- [x] Fix MSAL config TypeScript errors
+- [x] Fix `graphApi.ts` import — use `getMsalInstance`
+- [x] Production build passes
+
+## Phase 2: Data Layer & State Management
+
+- [ ] Create `src/services/teamsSync.ts` — orchestrate Graph API polling + caching
+- [ ] Add assignment sync engine (pull from `/education/me/assignments`)
+- [ ] Add class/team sync engine (pull from `/me/joinedTeams`)
+- [ ] Add calendar sync engine (pull from `/me/calendarview`)
+- [ ] Store synced data in `localStorage` with timestamp versioning
+- [ ] Add manual "Re-sync" button + auto-sync on login
+- [ ] Handle offline mode gracefully (show cached data when network fails)
+
+## Phase 3: AI Integration
+
+- [ ] Create `src/services/aiService.ts` — central Gemini API client
+- [ ] Implement **Assignment Parser** (see `docs/AI_SCHEMA.md`)
+- [ ] Implement **Weekly Study Plan Generator**
+- [ ] Implement **Parent Summary Digest**
+- [ ] Implement **Smart Task Prioritizer**
+- [ ] Add AI caching layer (cache by assignment ID in `localStorage`)
+- [ ] Add AI error handling & graceful degradation
+
+## Phase 4: UI Polish & Parent Features
+
+- [ ] Parent dashboard view (read-only summary of child's tasks)
+- [ ] Weekly digest email / in-app notification (simulated)
+- [ ] Red-flag alerts for overdue assignments
+- [ ] Task completion tracking with progress charts
+- [ ] Focus timer / Pomodoro integration
+- [ ] Dark mode toggle
+- [ ] Mobile-responsive bottom nav refinements
+
+## Phase 5: Deployment & DevOps
+
+- [ ] Add GitHub Actions CI for build + lint checks
+- [ ] Configure production `.env` variables
+- [ ] Deploy to Vercel / Netlify / Cloud Run
+- [ ] Set up Microsoft 365 Developer tenant for end-to-end testing
+- [ ] Write admin setup guide for school IT departments
+
+---
+
+## Quick Start (Development)
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure environment
+# Copy .env.example -> .env.local and fill in your keys
+
+# 3. Start dev server
+npm run dev
+# Open http://localhost:3000
+
+# 4. Build for production
+npm run build
+```
+
+## Microsoft Teams Setup (For Schools)
+
+1. Register app in [Azure Portal](https://portal.azure.com) → Microsoft Entra ID → App registrations
+2. Add delegated permissions: `EduAssignments.Read`, `TeamMember.Read.All`, `Calendars.Read`, `User.Read`
+3. Grant **admin consent** for the tenant
+4. Copy `Client ID` and `Tenant ID` into `.env.local`
+
+---
+
+## Architecture Overview
+
+```
+SparkDo React App
+├── Auth (localStorage + MSAL)
+├── Graph API Service (Teams/Outlook data)
+├── AI Service (Gemini enrichment)
+├── Sync Engine (polling + caching)
+└── UI Views (Dashboard / Tasks / Calendar / Profile)
+```
+
+---
+
+*Last updated: 2026-05-22*

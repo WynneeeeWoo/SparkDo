@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, Sparkles, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { AuthView } from '../types';
 
@@ -84,7 +84,7 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
           transition={{ delay: 0.3 }}
           className="text-center text-xs text-on-surface-variant mt-8"
         >
-          Secured with local encryption. Your credentials stay on this device.
+          Local accounts stay on this device. Microsoft login uses your school&apos;s secure identity system.
         </motion.p>
       </div>
     </div>
@@ -94,11 +94,12 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
 // --- Login Form ---
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
-  const { login } = useAuth();
+  const { login, loginWithMicrosoft, requestAdminConsent, msalEnabled, adminConsentRequired } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [msalLoading, setMsalLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -193,6 +194,63 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
           </>
         )}
       </button>
+
+      {msalEnabled && (
+        <>
+          <div className="relative flex items-center gap-4 py-2">
+            <div className="h-px flex-1 bg-outline-variant/20"></div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">or</span>
+            <div className="h-px flex-1 bg-outline-variant/20"></div>
+          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              setError('');
+              setMsalLoading(true);
+              const result = await loginWithMicrosoft();
+              if (!result.success) {
+                setError(result.error || 'Microsoft login failed.');
+              }
+              setMsalLoading(false);
+            }}
+            disabled={msalLoading}
+            className="w-full py-4 bg-surface-container-lowest text-on-surface rounded-2xl font-bold flex items-center justify-center gap-3 border border-outline-variant/20 hover:bg-surface-container-low hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60"
+          >
+            {msalLoading ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+                <ArrowRight size={20} className="opacity-50" />
+              </motion.div>
+            ) : (
+              <>
+                <MicrosoftLogo />
+                Sign in with Microsoft
+              </>
+            )}
+          </button>
+
+          {adminConsentRequired && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
+              <div className="flex items-start gap-3">
+                <ShieldAlert size={20} className="text-amber-600 mt-0.5 shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-amber-800">Admin Approval Required</p>
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    Your school&apos;s IT admin must approve SparkDo before it can access Teams assignments and class data.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={requestAdminConsent}
+                    className="text-xs font-bold text-amber-900 underline hover:no-underline"
+                  >
+                    Send admin consent request →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </form>
   );
 }
@@ -456,4 +514,15 @@ function getPasswordStrength(password: string): number {
   if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
   if (/\d/.test(password) && /[^A-Za-z0-9]/.test(password)) score++;
   return score;
+}
+
+function MicrosoftLogo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
 }

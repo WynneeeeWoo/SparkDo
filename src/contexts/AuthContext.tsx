@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import type { AccountInfo } from '@azure/msal-browser';
 import type { User } from '../types';
+import { hasMsalConfig, getMsalInstance, loginRequest, adminConsentUrl } from '../config/msalConfig';
+import { getMe, type GraphUser } from '../services/graphApi';
 
 interface StoredUser extends User {
   password: string;
@@ -9,11 +12,16 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  msalEnabled: boolean;
+  msalAccount: AccountInfo | null;
+  adminConsentRequired: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (updates: Partial<Omit<User, 'id'>>) => void;
+  loginWithMicrosoft: () => Promise<{ success: boolean; error?: string; adminConsent?: boolean }>;
+  requestAdminConsent: () => void;
 }
 
 const AUTH_STORAGE_KEY = 'sparkdo_auth_user';
@@ -54,18 +62,62 @@ function saveCurrentUser(user: User | null) {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [msalAccount, setMsalAccount] = useState<AccountInfo | null>(null);
+  const [adminConsentRequired, setAdminConsentRequired] = useState(false);
 
-  // Hydrate from localStorage on mount
+  const msalEnabled = hasMsalConfig;
+  const msalInstance = getMsalInstance();
+
+  // Hydrate from localStorage / MSAL on mount
   useEffect(() => {
-    const current = getCurrentUser();
-    if (current) {
-      setUser(current);
+    async function init() {
+      // Check MSAL first
+      if (msalInstance) {
+        try {
+          await msalInstance.initialize();
+          const accounts = msalInstance.getAllAccounts();
+          if (accounts.length > 0) {
+            const account = accounts[0];
+            setMsalAccount(account);
+            // Build user from MSAL account
+            const msalUser: User = {
+              id: account.homeAccountId,
+              email: account.username,
+              displayName: account.name || account.username.split('@')[0],
+            };
+            // Try to enrich with Graph profile
+            try {
+              const profile: GraphUser = await getMe(account);
+              if (profile.displayName) msalUser.displayName = profile.displayName;
+              if (profile.mail) msalUser.email = profile.mail;
+            } catch {
+              // Graph may fail if admin consent is missing — still keep the MSAL login
+            }
+            setUser(msalUser);
+            saveCurrentUser(msalUser);
+            setIsLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error('MSAL init error:', err);
+        }
+      }
+
+      // Fallback to local auth
+      const current = getCurrentUser();
+      if (current) {
+        setUser(current);
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  }, []);
+
+    init();
+  }, [msalInstance]);
+
+  // --- Local Auth ---
 
   const login = useCallback(async (email: string, password: string) => {
-    await new Promise((r) => setTimeout(r, 600)); // Simulate network
+    await new Promise((r) => setTimeout(r, 600));
     const users = getStoredUsers();
     const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 
@@ -79,11 +131,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { password: _, ...userWithoutPassword } = found;
     setUser(userWithoutPassword);
     saveCurrentUser(userWithoutPassword);
+    setMsalAccount(null);
+    setAdminConsentRequired(false);
     return { success: true };
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    await new Promise((r) => setTimeout(r, 800)); // Simulate network
+    await new Promise((r) => setTimeout(r, 800));
     const users = getStoredUsers();
 
     if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
@@ -106,13 +160,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { password: _, ...userWithoutPassword } = newUser;
     setUser(userWithoutPassword);
     saveCurrentUser(userWithoutPassword);
+    setMsalAccount(null);
+    setAdminConsentRequired(false);
     return { success: true };
   }, []);
 
   const logout = useCallback(() => {
+    if (msalInstance && msalAccount) {
+      msalInstance.logoutRedirect({ account: msalAccount }).catch(() => {
+        // If redirect fails, clear manually
+      });
+    }
     setUser(null);
+    setMsalAccount(null);
+    setAdminConsentRequired(false);
     saveCurrentUser(null);
-  }, []);
+  }, [msalInstance, msalAccount]);
 
   const resetPassword = useCallback(async (email: string) => {
     await new Promise((r) => setTimeout(r, 600));
@@ -122,8 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!found) {
       return { success: false, error: 'No account found with this email.' };
     }
-
-    // In a real app, send an email. Here we simulate success.
     return { success: true };
   }, []);
 
@@ -133,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev, ...updates };
       saveCurrentUser(next);
 
-      // Also update in users list
       const users = getStoredUsers();
       const idx = users.findIndex((u) => u.id === prev.id);
       if (idx >= 0) {
@@ -144,17 +204,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // --- Microsoft Auth ---
+
+  const loginWithMicrosoft = useCallback(async () => {
+    if (!msalInstance) {
+      return { success: false, error: 'Microsoft login is not configured. Add VITE_MSAL_CLIENT_ID to your .env file.' };
+    }
+
+    try {
+      setAdminConsentRequired(false);
+      const response = await msalInstance.loginPopup(loginRequest);
+      const account = response.account;
+
+      if (!account) {
+        return { success: false, error: 'Login was cancelled or no account was returned.' };
+      }
+
+      // Build user from MSAL + Graph
+      const msalUser: User = {
+        id: account.homeAccountId,
+        email: account.username,
+        displayName: account.name || account.username.split('@')[0],
+      };
+
+      try {
+        const profile: GraphUser = await getMe(account);
+        if (profile.displayName) msalUser.displayName = profile.displayName;
+        if (profile.mail) msalUser.email = profile.mail;
+      } catch (graphErr: any) {
+        // Check for admin consent error
+        const errMsg = graphErr?.message || '';
+        if (errMsg.includes('403') || errMsg.includes('Consent')) {
+          setAdminConsentRequired(true);
+          // Still log them in with basic info
+        }
+      }
+
+      setMsalAccount(account);
+      setUser(msalUser);
+      saveCurrentUser(msalUser);
+      return { success: true };
+    } catch (err: any) {
+      const errorCode = err?.errorCode || err?.message || '';
+      const errorMessage = err?.message || 'Microsoft login failed.';
+
+      // Detect admin consent required
+      if (
+        errorCode.includes('AADSTS65001') ||
+        errorCode.includes('AADSTS90094') ||
+        errorMessage.includes('admin') ||
+        errorMessage.includes('consent')
+      ) {
+        setAdminConsentRequired(true);
+        return { success: false, error: 'Admin approval required. Ask your IT admin to approve SparkDo, or click below to send a request.', adminConsent: true };
+      }
+
+      return { success: false, error: errorMessage };
+    }
+  }, [msalInstance]);
+
+  const requestAdminConsent = useCallback(() => {
+    const url = adminConsentUrl();
+    window.open(url, '_blank');
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
         isLoading,
+        msalEnabled,
+        msalAccount,
+        adminConsentRequired,
         login,
         register,
         logout,
         resetPassword,
         updateProfile,
+        loginWithMicrosoft,
+        requestAdminConsent,
       }}
     >
       {children}

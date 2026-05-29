@@ -1,4 +1,4 @@
-export type View = 'home' | 'tasks' | 'calendar' | 'profile' | 'assignment';
+export type View = 'home' | 'tasks' | 'calendar' | 'profile' | 'assignment' | 'family';
 
 export interface Task {
   id: string;

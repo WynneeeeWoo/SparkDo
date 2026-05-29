@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   RefreshCw,
@@ -23,11 +23,18 @@ import {
   MoreVertical,
   Lightbulb,
   LogOut,
-  Sparkles
+  Sparkles,
+  Heart,
+  Moon,
+  Sun,
+  TrendingUp,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
 import { useSync } from './contexts/SyncContext';
+import { useTheme } from './contexts/ThemeContext';
+import FocusTimer from './components/FocusTimer';
 import AuthForms from './components/AuthForms';
 import { View, Task, Deadline, MonitoredClass, User as UserType } from './types';
 import { TASKS, DEADLINES, CLASSES } from './constants';
@@ -114,7 +121,8 @@ const BottomNav = ({ activeView, setView }: { activeView: View, setView: (v: Vie
       { id: 'home', icon: BookOpen, label: 'Home' },
       { id: 'tasks', icon: CheckSquare, label: 'Tasks' },
       { id: 'calendar', icon: CalendarIcon, label: 'Calendar' },
-      { id: 'profile', icon: User, label: 'Profile' }
+      { id: 'profile', icon: User, label: 'Profile' },
+      { id: 'family', icon: Heart, label: 'Family' }
     ].map((item) => (
       <button
         key={item.id}
@@ -143,7 +151,7 @@ const FAB = ({ onClick }: { onClick?: () => void }) => (
 
 // --- View Components ---
 
-const DashboardView = ({ onAssignmentClick, user, onSync, isSyncing, lastSyncedAt }: { onAssignmentClick: () => void, user: UserType, onSync: () => void, isSyncing: boolean, lastSyncedAt: string | null }) => {
+const DashboardView = ({ onAssignmentClick, user, onSync, isSyncing, lastSyncedAt, assignments }: { onAssignmentClick: () => void, user: UserType, onSync: () => void, isSyncing: boolean, lastSyncedAt: string | null, assignments: any[] }) => {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
@@ -154,6 +162,9 @@ const DashboardView = ({ onAssignmentClick, user, onSync, isSyncing, lastSyncedA
       exit={{ opacity: 0, y: -20 }}
       className="space-y-12 pb-12"
     >
+      <RedFlagAlert assignments={assignments} />
+      <ProgressStats assignments={assignments} />
+
       {/* Hero */}
       <section className="editorial-asymmetry">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -430,7 +441,7 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt }: { assignments: any[
         <div className="relative z-10">
           <h3 className="text-2xl font-black mb-2 leading-tight">Focus Studio</h3>
           <p className="text-primary-container text-sm font-medium mb-6">Deep work session starts in 5 minutes</p>
-          <button className="w-full bg-primary py-3 rounded-2xl font-black uppercase tracking-widest text-[11px] text-on-background hover:bg-white transition-colors">Start Pomodoro</button>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('open-focus-timer'))} className="w-full bg-primary py-3 rounded-2xl font-black uppercase tracking-widest text-[11px] text-on-background hover:bg-white transition-colors">Start Pomodoro</button>
         </div>
         <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:rotate-12 transition-transform duration-700">
           <Hourglass size={120} />
@@ -541,7 +552,7 @@ const CalendarView = ({ events }: { events: any[] }) => {
             </div>
             <h3 className="text-3xl font-black mb-4 leading-tight">Advanced Curatorial Thesis</h3>
             <p className="text-on-primary/80 mb-8 font-medium">90 minutes deep work sprint scheduled for today at 2:00 PM.</p>
-            <button className="w-full bg-white text-primary font-bold py-4 rounded-full hover:scale-[1.02] transition-transform active:scale-95 shadow-lg">
+            <button onClick={() => window.dispatchEvent(new CustomEvent('open-focus-timer'))} className="w-full bg-white text-primary font-bold py-4 rounded-full hover:scale-[1.02] transition-transform active:scale-95 shadow-lg">
               Start Session
             </button>
           </div>
@@ -829,6 +840,170 @@ const AssignmentDetailView = ({ onBack }: { onBack: () => void }) => (
   </motion.div>
 );
 
+// --- Red Flag Alert ---
+
+function RedFlagAlert({ assignments }: { assignments: any[] }) {
+  const overdue = assignments.filter((a: any) => {
+    if (!a.dueDateTime || a.completed) return false;
+    return new Date(a.dueDateTime) < new Date();
+  });
+
+  if (overdue.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-8 flex items-start gap-3"
+    >
+      <AlertCircle size={20} className="text-red-600 mt-0.5 shrink-0" />
+      <div>
+        <p className="text-sm font-bold text-red-800">
+          {overdue.length} assignment{overdue.length > 1 ? 's' : ''} overdue
+        </p>
+        <p className="text-xs text-red-600 mt-0.5">
+          {overdue.map((a: any) => a.title).join(', ').slice(0, 80)}{overdue.length > 2 ? '...' : ''}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+// --- Progress Stats ---
+
+function ProgressStats({ assignments }: { assignments: any[] }) {
+  const total = assignments.length;
+  const completed = assignments.filter((a: any) => a.completed).length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return (
+    <div className="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-on-primary-container">
+            <TrendingUp size={20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-on-surface">Assignment Progress</h3>
+            <p className="text-xs text-on-surface-variant">{completed} of {total} completed</p>
+          </div>
+        </div>
+        <span className="text-2xl font-black text-primary">{percent}%</span>
+      </div>
+      <div className="h-3 w-full bg-surface-container-low rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${percent}%` }}
+          transition={{ duration: 1, ease: 'easeOut' }}
+          className="h-full bg-primary rounded-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+// --- Family View ---
+
+function FamilyView({ assignments }: { assignments: any[] }) {
+  const total = assignments.length;
+  const completed = assignments.filter((a: any) => a.completed).length;
+  const overdue = assignments.filter((a: any) => {
+    if (!a.dueDateTime || a.completed) return false;
+    return new Date(a.dueDateTime) < new Date();
+  });
+  const urgent = assignments.filter((a: any) => a.priority === 'urgent' && !a.completed);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="max-w-6xl mx-auto space-y-10 pb-12"
+    >
+      <div>
+        <span className="text-sm font-bold uppercase tracking-[0.2em] text-secondary">Family Overview</span>
+        <h2 className="text-5xl md:text-6xl font-black text-on-background tracking-tighter leading-none mt-2">
+          Parent <span className="text-primary-fixed">Dashboard</span>
+        </h2>
+      </div>
+
+      {/* Weekly Digest Card */}
+      <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center text-on-primary-container">
+            <Heart size={20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-on-surface">Weekly Digest</h3>
+            <p className="text-xs text-on-surface-variant">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-surface-container-low p-4 rounded-2xl text-center">
+            <span className="block text-3xl font-black text-primary">{total}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Total</span>
+          </div>
+          <div className="bg-surface-container-low p-4 rounded-2xl text-center">
+            <span className="block text-3xl font-black text-tertiary">{completed}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Done</span>
+          </div>
+          <div className="bg-surface-container-low p-4 rounded-2xl text-center">
+            <span className="block text-3xl font-black text-secondary">{urgent.length}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Urgent</span>
+          </div>
+          <div className="bg-red-50 p-4 rounded-2xl text-center">
+            <span className="block text-3xl font-black text-red-500">{overdue.length}</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-red-400">Overdue</span>
+          </div>
+        </div>
+
+        {overdue.length > 0 && (
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
+            <p className="text-sm font-bold text-red-800 mb-2">Red Flags</p>
+            <div className="space-y-2">
+              {overdue.map((a: any) => (
+                <div key={a.id} className="flex items-center gap-2 text-xs text-red-700">
+                  <AlertCircle size={14} />
+                  <span className="font-medium">{a.title}</span>
+                  <span className="text-red-400">• Overdue</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Task List (read-only) */}
+      <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
+        <h3 className="text-xl font-bold text-on-surface mb-6">All Assignments</h3>
+        <div className="space-y-3">
+          {assignments.length === 0 ? (
+            <p className="text-on-surface-variant text-sm">No assignments synced yet. Connect Microsoft Teams to see data.</p>
+          ) : (
+            assignments.map((a: any) => (
+              <div key={a.id} className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low">
+                <div className={`w-3 h-3 rounded-full shrink-0 ${a.completed ? 'bg-green-500' : new Date(a.dueDateTime) < new Date() ? 'bg-red-500' : a.priority === 'urgent' ? 'bg-orange-500' : 'bg-gray-300'}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`font-bold text-sm truncate ${a.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{a.title}</p>
+                  <p className="text-xs text-on-surface-variant">{a.className || 'General'} • {a.dueDateTime ? new Date(a.dueDateTime).toLocaleDateString() : 'No due date'}</p>
+                </div>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
+                  a.priority === 'urgent' ? 'bg-red-100 text-red-600' :
+                  a.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                  'bg-surface-container text-on-surface-variant'
+                }`}>
+                  {a.priority}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // --- Auth Loading Screen ---
 
 function AuthLoading() {
@@ -857,8 +1032,16 @@ function AuthLoading() {
 export default function App() {
   const { user, isAuthenticated, isLoading, logout, msalAccount } = useAuth();
   const { assignments, classes, events, isSyncing, lastSyncedAt, sync } = useSync();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [view, setView] = useState<View>('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [focusTimerOpen, setFocusTimerOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setFocusTimerOpen(true);
+    window.addEventListener('open-focus-timer', handler);
+    return () => window.removeEventListener('open-focus-timer', handler);
+  }, []);
 
   if (isLoading) {
     return <AuthLoading />;
@@ -870,12 +1053,13 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'home': return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
+      case 'home': return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} assignments={assignments} />;
       case 'tasks': return <TasksView assignments={assignments} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
       case 'calendar': return <CalendarView events={events} />;
       case 'profile': return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
       case 'assignment': return <AssignmentDetailView onBack={() => setView('home')} />;
-      default: return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
+      case 'family': return <FamilyView assignments={assignments} />;
+      default: return <DashboardView onAssignmentClick={() => setView('assignment')} user={user} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} assignments={assignments} />;
     }
   };
 
@@ -897,6 +1081,8 @@ export default function App() {
       <BottomNav activeView={view} setView={setView} />
 
       {view !== 'assignment' && <FAB />}
+
+      <FocusTimer isOpen={focusTimerOpen} onClose={() => setFocusTimerOpen(false)} />
 
       {/* Simple Sidebar Overlay */}
       <AnimatePresence>
@@ -923,15 +1109,31 @@ export default function App() {
                 <p className="text-xs text-on-surface-variant mt-1">{user.email}</p>
               </div>
               <div className="space-y-2 flex-1">
-                {['Dashboard', 'Assignments', 'Resources', 'Settings'].map(item => (
+                {[
+                  { label: 'Dashboard', icon: BookOpen, view: 'home' },
+                  { label: 'Assignments', icon: CheckSquare, view: 'tasks' },
+                  { label: 'Family', icon: Heart, view: 'family' },
+                  { label: 'Resources', icon: FileText, view: 'home' },
+                  { label: 'Settings', icon: User, view: 'profile' },
+                ].map(item => (
                   <button
-                    key={item}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block w-full text-left px-4 py-3 text-lg font-bold text-on-surface hover:text-primary hover:bg-surface-container-low rounded-2xl transition-colors"
+                    key={item.label}
+                    onClick={() => { setIsMenuOpen(false); setView(item.view as View); }}
+                    className="flex items-center gap-3 w-full text-left px-4 py-3 text-lg font-bold text-on-surface hover:text-primary hover:bg-surface-container-low rounded-2xl transition-colors"
                   >
-                    {item}
+                    <item.icon size={20} />
+                    {item.label}
                   </button>
                 ))}
+              </div>
+              <div className="space-y-2 mb-4">
+                <button
+                  onClick={() => { toggleTheme(); }}
+                  className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm font-bold text-on-surface-variant hover:text-primary hover:bg-surface-container-low rounded-2xl transition-colors"
+                >
+                  {isDark ? <Sun size={18} /> : <Moon size={18} />}
+                  {isDark ? 'Light Mode' : 'Dark Mode'}
+                </button>
               </div>
               <button
                 onClick={() => { setIsMenuOpen(false); logout(); }}

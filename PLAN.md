@@ -20,17 +20,20 @@
 
 ## Phase 2: Data Layer & State Management
 
-- [ ] Create `src/services/teamsSync.ts` — orchestrate Graph API polling + caching
-- [ ] Add assignment sync engine (pull from `/education/me/assignments`)
-- [ ] Add class/team sync engine (pull from `/me/joinedTeams`)
-- [ ] Add calendar sync engine (pull from `/me/calendarview`)
-- [ ] Store synced data in `localStorage` with timestamp versioning
-- [ ] Add manual "Re-sync" button + auto-sync on login
-- [ ] Handle offline mode gracefully (show cached data when network fails)
+- [x] Create `src/services/teamsSync.ts` — orchestrate Graph API polling + caching
+- [x] Add assignment sync engine (pull from `/education/me/assignments`)
+- [x] Add class/team sync engine (pull from `/me/joinedTeams`)
+- [x] Add calendar sync engine (pull from `/me/calendarview`)
+- [x] Store synced data in `localStorage` with timestamp versioning
+- [x] Add manual "Re-sync" button + auto-sync on login
+- [x] Handle offline mode gracefully (show cached data when network fails)
+- [x] Integrate synced data into Dashboard, Tasks, Calendar, and Profile views
 
-## Phase 3: AI Integration
+## Phase 3: AI Integration (OpenAI)
 
-- [ ] Create `src/services/aiService.ts` — central Gemini API client
+- [ ] Install `openai` package
+- [ ] Create `src/services/aiService.ts` — central OpenAI client (`gpt-4o` / `gpt-4o-mini`)
+- [ ] Update `.env.example` — `OPENAI_API_KEY`
 - [ ] Implement **Assignment Parser** (see `docs/AI_SCHEMA.md`)
 - [ ] Implement **Weekly Study Plan Generator**
 - [ ] Implement **Parent Summary Digest**
@@ -90,11 +93,11 @@ npm run build
 SparkDo React App
 ├── Auth (localStorage + MSAL)
 ├── Graph API Service (Teams/Outlook data)
-├── AI Service (Gemini enrichment)
+├── AI Service (OpenAI enrichment)
 ├── Sync Engine (polling + caching)
 └── UI Views (Dashboard / Tasks / Calendar / Profile)
 ```
 
 ---
 
-*Last updated: 2026-05-22*
+*Last updated: 2026-05-29*

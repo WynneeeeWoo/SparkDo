@@ -40,38 +40,6 @@
   --radius-3xl: 2rem;
 }
 
-/* Dark Mode Overrides */
-html.dark {
-  --color-primary: #ffb3c1;
-  --color-primary-container: #993c50;
-  --color-on-primary: #54051e;
-  --color-on-primary-container: #ffeff0;
-  --color-primary-fixed: #f48498;
-
-  --color-secondary: #ff8fc0;
-  --color-secondary-container: #9b3667;
-  --color-on-secondary-container: #ffc0d7;
-
-  --color-tertiary: #c5b3ff;
-  --color-tertiary-container: #6249b2;
-  --color-on-tertiary-container: #b8a3ff;
-
-  --color-surface: #2a121c;
-  --color-surface-bright: #3a1e2c;
-  --color-surface-dim: #1a0a12;
-  --color-surface-container-lowest: #1a0a12;
-  --color-surface-container-low: #2a121c;
-  --color-surface-container: #3a1e2c;
-  --color-surface-container-high: #4a2a3c;
-  --color-surface-container-highest: #5a364c;
-
-  --color-on-surface: #ffd1e0;
-  --color-on-surface-variant: #d89cb3;
-  --color-on-background: #ffd1e0;
-  --color-outline: #7e4d61;
-  --color-outline-variant: #5a364c;
-}
-
 @layer base {
   body {
     @apply bg-surface text-on-surface font-body antialiased;
@@ -90,10 +58,6 @@ html.dark {
 
 .ghost-border {
   border: 1px solid rgba(216, 156, 179, 0.2);
-}
-
-html.dark .ghost-border {
-  border-color: rgba(90, 54, 76, 0.4);
 }
 
 .vertical-rl {

@@ -1,26 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Menu,
   RefreshCw,
   Users,
   AlertCircle,
-  FileText,
-  CheckSquare,
   Calendar as CalendarIcon,
   User,
-  Plus,
-  Share2,
-  Cloud,
-  HardDrive,
   Timer,
   Check,
   ChevronRight,
   LogOut,
   Sparkles,
-  Moon,
-  Sun,
   TrendingUp,
-  X,
   Flame,
   School,
   Briefcase,
@@ -29,7 +19,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
 import { useSync } from './contexts/SyncContext';
-import { useTheme } from './contexts/ThemeContext';
 import { useAccountMode } from './contexts/AccountModeContext';
 import FocusTimer from './components/FocusTimer';
 import AuthForms from './components/AuthForms';
@@ -38,19 +27,12 @@ import { DEADLINES, CLASSES } from './constants';
 
 // --- Shared Components ---
 
-const Header = ({ currentView, onMenuClick, user, onLogout }: { currentView: string, onMenuClick: () => void, user: UserType, onLogout: () => void }) => {
+const Header = ({ currentView, user, onLogout }: { currentView: string, user: UserType, onLogout: () => void }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { isDark, toggle } = useTheme();
 
   return (
     <header className="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md flex justify-between items-center px-6 py-4">
       <div className="flex items-center gap-4">
-        <button
-          onClick={onMenuClick}
-          className="text-primary p-2 rounded-full hover:bg-surface-container-high/20 transition-colors active:scale-95"
-        >
-          <Menu size={24} />
-        </button>
         <h1 className="text-xl font-black text-on-surface tracking-tight font-headline">SparkDo</h1>
       </div>
       <div className="flex items-center gap-4">
@@ -87,13 +69,6 @@ const Header = ({ currentView, onMenuClick, user, onLogout }: { currentView: str
                     <p className="font-bold text-on-surface text-sm">{user.displayName}</p>
                     <p className="text-xs text-on-surface-variant truncate">{user.email}</p>
                   </div>
-                  <button
-                    onClick={() => { setShowUserMenu(false); toggle(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-on-surface hover:bg-surface-container-low transition-colors"
-                  >
-                    {isDark ? <Sun size={16} /> : <Moon size={16} />}
-                    {isDark ? 'Light Mode' : 'Dark Mode'}
-                  </button>
                   <button
                     onClick={() => { setShowUserMenu(false); onLogout(); }}
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
@@ -174,6 +149,35 @@ function getWeekEnd(): Date {
 
 // --- Tasks View (Homepage) ---
 
+interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+const MOCK_TODOS: TodoItem[] = [
+  { id: 't1', text: 'Review math chapter 5 notes', completed: false },
+  { id: 't2', text: 'Email teacher about extension', completed: true },
+  { id: 't3', text: 'Pack gym clothes for tomorrow', completed: false },
+  { id: 't4', text: 'Finish history reading (pp. 45-62)', completed: false },
+  { id: 't5', text: 'Buy graph paper for calculus', completed: true },
+];
+
+const TODO_STORAGE_KEY = 'sparkdo_todos';
+
+function getStoredTodos(): TodoItem[] {
+  try {
+    const raw = localStorage.getItem(TODO_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : MOCK_TODOS;
+  } catch {
+    return MOCK_TODOS;
+  }
+}
+
+function saveTodos(todos: TodoItem[]) {
+  localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
+}
+
 const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTimer }: {
   assignments: any[],
   isSyncing: boolean,
@@ -182,8 +186,17 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTi
   onOpenFocusTimer: () => void,
 }) => {
   const { mode, label, canSync, isReadOnly } = useAccountMode();
+  const [todos, setTodos] = useState<TodoItem[]>(getStoredTodos);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+
+  const toggleTodo = (id: string) => {
+    setTodos((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
+      saveTodos(next);
+      return next;
+    });
+  };
 
   const urgent = assignments.filter((a: any) => !a.completed && (a.priority === 'urgent' || (a.dueDateTime && new Date(a.dueDateTime) < new Date())));
   const recent = [...assignments].sort((a, b) => {
@@ -284,6 +297,27 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTi
           </div>
         </section>
       )}
+
+      {/* My To-Do List */}
+      <section className="space-y-4">
+        <h3 className="text-xl font-black text-on-surface">My To-Do List</h3>
+        <div className="space-y-2">
+          {todos.map((todo) => (
+            <button
+              key={todo.id}
+              onClick={() => toggleTodo(todo.id)}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-outline-variant/10 shadow-sm hover:shadow-md transition-all text-left"
+            >
+              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}>
+                {todo.completed && <Check size={14} strokeWidth={3} />}
+              </div>
+              <span className={`font-bold text-sm ${todo.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
+                {todo.text}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Recent Items */}
       <section className="space-y-4">
@@ -499,7 +533,6 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt 
   lastSyncedAt: string | null;
 }) => {
   const { mode, setMode, label, canSync } = useAccountMode();
-  const { isDark, toggle } = useTheme();
 
   const modes: { id: typeof mode; icon: typeof School; color: string; title: string; desc: string }[] = [
     { id: 'child', icon: School, color: 'bg-primary text-on-primary', title: 'Student', desc: 'Full access to assignments, Teams sync, and school activities' },
@@ -593,23 +626,6 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt 
         </div>
       )}
 
-      {/* Settings */}
-      <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm space-y-4">
-        <h3 className="text-xl font-bold text-on-surface">Settings</h3>
-        <button
-          onClick={toggle}
-          className="w-full flex items-center justify-between p-4 rounded-2xl bg-surface-container-low hover:bg-surface-container-high transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            {isDark ? <Sun size={20} className="text-on-surface" /> : <Moon size={20} className="text-on-surface" />}
-            <span className="font-bold text-sm text-on-surface">{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-          </div>
-          <div className={`w-10 h-6 rounded-full p-1 transition-colors ${isDark ? 'bg-primary' : 'bg-outline-variant/30'}`}>
-            <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${isDark ? 'translate-x-4' : 'translate-x-0'}`} />
-          </div>
-        </button>
-      </div>
-
       {/* Monitored Classes */}
       {canSync && classes.length > 0 && (
         <div className="space-y-4">
@@ -640,7 +656,6 @@ export default function App() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { assignments, classes, events, isSyncing, lastSyncedAt, sync } = useSync();
   const [view, setView] = useState<View>('tasks');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [focusTimerOpen, setFocusTimerOpen] = useState(false);
 
   useEffect(() => {
@@ -691,7 +706,6 @@ export default function App() {
     <div className="min-h-screen bg-surface selection:bg-primary/20">
       <Header
         currentView={view === 'tasks' ? 'Home' : view.charAt(0).toUpperCase() + view.slice(1)}
-        onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
         user={user}
         onLogout={logout}
       />
@@ -705,58 +719,6 @@ export default function App() {
       <BottomNav activeView={view} setView={setView} />
 
       <FocusTimer isOpen={focusTimerOpen} onClose={() => setFocusTimerOpen(false)} />
-
-      {/* Sidebar Overlay */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMenuOpen(false)}
-              className="fixed inset-0 bg-on-background/20 backdrop-blur-sm z-[60]"
-            />
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              className="fixed top-0 left-0 h-full w-72 bg-white z-[70] p-8 shadow-2xl flex flex-col"
-            >
-              <div className="mb-10">
-                <div className="w-12 h-12 rounded-2xl bg-primary text-on-primary flex items-center justify-center mb-4 shadow-lg">
-                  <Sparkles size={24} />
-                </div>
-                <h2 className="text-2xl font-black">SparkDo</h2>
-                <p className="text-xs text-on-surface-variant mt-1">{user.email}</p>
-              </div>
-              <div className="space-y-2 flex-1">
-                {[
-                  { label: 'Home', icon: Home, view: 'tasks' as View },
-                  { label: 'Calendar', icon: CalendarIcon, view: 'calendar' as View },
-                  { label: 'Profile', icon: User, view: 'profile' as View },
-                ].map(item => (
-                  <button
-                    key={item.label}
-                    onClick={() => { setIsMenuOpen(false); setView(item.view); }}
-                    className="flex items-center gap-3 w-full text-left px-4 py-3 text-lg font-bold text-on-surface hover:text-primary hover:bg-surface-container-low rounded-2xl transition-colors"
-                  >
-                    <item.icon size={20} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => { setIsMenuOpen(false); logout(); }}
-                className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-colors"
-              >
-                <LogOut size={18} />
-                Sign Out
-              </button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

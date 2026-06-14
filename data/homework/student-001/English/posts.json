@@ -1,0 +1,39 @@
+{
+  "subject": "English",
+  "description": "English Literature and Composition",
+  "posts": [
+    {
+      "id": "eng-001",
+      "type": "assignment",
+      "title": "Persuasive Essay Draft",
+      "content": "Submit a complete first draft of your persuasive essay on social media.",
+      "assignedDateTime": "2026-06-09T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 120,
+      "attachments": [
+        "essay_rubric.pdf"
+      ],
+      "dueDateTime": "2026-06-16T23:59:00+08:00"
+    },
+    {
+      "id": "eng-002",
+      "type": "assignment",
+      "title": "Romeo and Juliet Scene Analysis",
+      "content": "Analyse Act 2 Scene 2 in 500 words.",
+      "assignedDateTime": "2026-06-12T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 80,
+      "attachments": [],
+      "dueDateTime": "2026-06-22T23:59:00+08:00"
+    },
+    {
+      "id": "eng-003",
+      "type": "post",
+      "title": "Book club pick",
+      "content": "Next month's book: \"The Giver\" by Lois Lowry.",
+      "postedAt": "2026-06-11T00:00:00+08:00",
+      "author": "Mr. Smith",
+      "attachments": []
+    }
+  ]
+}

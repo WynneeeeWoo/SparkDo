@@ -14,7 +14,8 @@ import {
   Flame,
   School,
   Briefcase,
-  Home
+  Home,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
@@ -135,6 +136,19 @@ function formatSyncTime(iso: string | null, isSyncing: boolean): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function formatPostTime(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 function getWeekStart(): Date {
   const d = new Date();
   const day = d.getDay();
@@ -178,11 +192,15 @@ function saveTodos(todos: TodoItem[]) {
   localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
 }
 
-const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTimer }: {
+const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer }: {
   assignments: any[],
+  posts: any[],
+  aiSummary: any,
   isSyncing: boolean,
+  isAnalyzing: boolean,
   lastSyncedAt: string | null,
   onSync: () => void,
+  onAnalyze: () => void,
   onOpenFocusTimer: () => void,
 }) => {
   const { mode, label, canSync, isReadOnly } = useAccountMode();
@@ -253,6 +271,16 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTi
               <Timer size={16} />
               Focus
             </button>
+            {canSync && (
+              <button
+                onClick={onAnalyze}
+                disabled={isAnalyzing}
+                className="bg-gradient-to-br from-secondary to-secondary-container text-on-secondary px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-secondary/20 transition-all active:scale-95 disabled:opacity-70 text-sm"
+              >
+                <Sparkles size={16} className={isAnalyzing ? 'animate-pulse' : ''} />
+                {isAnalyzing ? 'Analyzing' : 'Analyze'}
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -324,7 +352,7 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTi
         <h3 className="text-xl font-black text-on-surface">Recent Items</h3>
         <div className="space-y-3">
           {recent.length === 0 ? (
-            <p className="text-on-surface-variant text-sm">No assignments yet. {canSync ? 'Sync with Microsoft Teams to get started.' : 'Add tasks manually or switch to Student mode.'}</p>
+            <p className="text-on-surface-variant text-sm">No assignments yet. {canSync ? 'Press Sync to load your data.' : 'Add tasks manually or switch to Student mode.'}</p>
           ) : (
             recent.map((task: any) => (
               <div key={task.id} className="group bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
@@ -351,6 +379,119 @@ const TasksView = ({ assignments, isSyncing, lastSyncedAt, onSync, onOpenFocusTi
           )}
         </div>
       </section>
+
+      {/* Recent Channel Posts */}
+      {posts.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare size={20} className="text-primary" />
+            <h3 className="text-xl font-black text-on-surface">Recent Channel Posts</h3>
+          </div>
+          <div className="space-y-3">
+            {posts
+              .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
+              .slice(0, 5)
+              .map((post: any) => (
+                <div key={post.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt)}</p>
+                      <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* AI Summary — Today's Homework */}
+      {aiSummary?.today?.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles size={20} className="text-secondary" />
+            <h3 className="text-xl font-black text-on-surface">Today's Homework</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {aiSummary.today.map((item: any) => (
+              <div key={item.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-sm text-on-surface">{item.title}</h4>
+                    <p className="text-xs text-on-surface-variant mt-0.5">{item.className} • {formatDueDate(item.dueDateTime)}</p>
+                    <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{item.content}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest shrink-0">Today</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* AI Summary — Cross-Subject Summary */}
+      {aiSummary?.crossSubject && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={20} className="text-tertiary" />
+            <h3 className="text-xl font-black text-on-surface">Cross-Subject Summary</h3>
+          </div>
+          <div className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center">
+                <p className="text-2xl font-black text-primary">{aiSummary.crossSubject.totalAssignments}</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Assignments</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-green-500">{aiSummary.crossSubject.completed}</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Done</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-red-500">{aiSummary.crossSubject.overdue}</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Overdue</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-tertiary">{Object.keys(aiSummary.crossSubject.bySubject || {}).length}</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Subjects</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(aiSummary.crossSubject.bySubject || {}).map(([subject, count]: [string, any]) => (
+                <span key={subject} className="px-3 py-1 rounded-full bg-surface-container-low text-xs font-bold text-on-surface-variant">
+                  {subject}: {count}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* AI Summary — Recent Activities */}
+      {aiSummary?.recentActivities?.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare size={20} className="text-primary" />
+            <h3 className="text-xl font-black text-on-surface">Recent Activities</h3>
+          </div>
+          <div className="space-y-3">
+            {aiSummary.recentActivities
+              .sort((a: any, b: any) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
+              .slice(0, 5)
+              .map((activity: any) => (
+                <div key={activity.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm text-on-surface">{activity.subject}</h4>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{activity.className} • {formatPostTime(activity.postedAt)}</p>
+                      <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{activity.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent Deadlines */}
       <section className="space-y-4">
@@ -524,15 +665,17 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
 
 // --- Profile View ---
 
-const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt }: {
+const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt, source }: {
   user: UserType;
   onLogout: () => void;
   classes: any[];
   onSync: () => void;
   isSyncing: boolean;
   lastSyncedAt: string | null;
+  source: 'teams' | 'local' | 'none';
 }) => {
   const { mode, setMode, label, canSync } = useAccountMode();
+  const isLocalSource = source === 'local';
 
   const modes: { id: typeof mode; icon: typeof School; color: string; title: string; desc: string }[] = [
     { id: 'child', icon: School, color: 'bg-primary text-on-primary', title: 'Student', desc: 'Full access to assignments, Teams sync, and school activities' },
@@ -607,12 +750,12 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt 
         <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-on-surface">Microsoft Teams</h3>
+              <h3 className="text-xl font-bold text-on-surface">{isLocalSource ? 'Local Folder' : 'Microsoft Teams'}</h3>
               <p className="text-sm text-on-surface-variant">{formatSyncTime(lastSyncedAt, isSyncing)}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="font-bold text-sm text-on-surface">Connected</span>
+              <span className="font-bold text-sm text-on-surface">{isLocalSource ? 'Active' : 'Connected'}</span>
             </div>
           </div>
           <button
@@ -654,7 +797,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt 
 
 export default function App() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const { assignments, classes, events, isSyncing, lastSyncedAt, sync } = useSync();
+  const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source } = useSync();
   const [view, setView] = useState<View>('tasks');
   const [focusTimerOpen, setFocusTimerOpen] = useState(false);
 
@@ -692,13 +835,13 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'tasks':
-        return <TasksView assignments={assignments} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} onSync={sync} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
       case 'calendar':
         return <CalendarView events={events} assignments={assignments} />;
       case 'profile':
-        return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} />;
+        return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} source={source} />;
       default:
-        return <TasksView assignments={assignments} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} onSync={sync} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
     }
   };
 

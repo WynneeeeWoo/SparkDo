@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import {
   syncAll,
@@ -11,16 +11,34 @@ import {
   getCachedCalendarEvents,
   getLastSyncedAt,
 } from '../services/teamsSync';
+import {
+  syncAllLocal,
+  clearLocalCache,
+  isLocalCacheFresh,
+  getCachedLocalAssignments,
+  getCachedLocalClasses,
+  getCachedLocalTeams,
+  getCachedLocalCalendarEvents,
+  getCachedLocalPosts,
+  getLocalLastSyncedAt,
+} from '../services/localSync';
+import { analyzeFiles } from '../services/aiAnalyzer';
+import { getAICache, saveAICache, clearAICache } from '../services/aiAnalysisCache';
 import type {
   SyncedAssignment,
   SyncedClass,
   SyncedEvent,
   SyncState,
+  ChannelPost,
+  AISummaryCache,
 } from '../types';
 
 interface SyncContextValue extends SyncState {
   sync: () => Promise<void>;
   clear: () => void;
+  analyze: () => Promise<void>;
+  source: 'teams' | 'local' | 'none';
+  localUserId: string | null;
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null);
@@ -76,6 +94,18 @@ function mapEvents(raw: any[]): SyncedEvent[] {
   }));
 }
 
+function mapPosts(raw: any[]): ChannelPost[] {
+  return raw.map((p) => ({
+    id: p.id,
+    subject: p.subject || 'Untitled Post',
+    content: p.content || '',
+    className: p.className || 'General',
+    postedAt: p.postedAt || new Date().toISOString(),
+    author: p.author,
+    attachments: p.attachments || [],
+  }));
+}
+
 function stripHtml(html: string): string {
   if (!html) return '';
   const tmp = document.createElement('div');
@@ -83,26 +113,78 @@ function stripHtml(html: string): string {
   return tmp.textContent || tmp.innerText || '';
 }
 
+function getLocalUserId(): string | null {
+  try {
+    return (import.meta.env.VITE_LOCAL_USER_ID as string) || null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeById<T extends { id: string }>(base: T[], extra: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const item of base) map.set(item.id, item);
+  for (const item of extra) map.set(item.id, item);
+  return Array.from(map.values());
+}
+
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { msalAccount, isAuthenticated } = useAuth();
+  const localUserId = useMemo(() => getLocalUserId(), []);
+  const isLocalMode = Boolean(localUserId);
 
-  const [assignments, setAssignments] = useState<SyncedAssignment[]>([]);
-  const [classes, setClasses] = useState<SyncedClass[]>([]);
-  const [events, setEvents] = useState<SyncedEvent[]>([]);
+  const [folderAssignments, setFolderAssignments] = useState<SyncedAssignment[]>([]);
+  const [folderClasses, setFolderClasses] = useState<SyncedClass[]>([]);
+  const [folderEvents, setFolderEvents] = useState<SyncedEvent[]>([]);
+  const [folderPosts, setFolderPosts] = useState<ChannelPost[]>([]);
+
+  const [aiAssignmentsRaw, setAiAssignmentsRaw] = useState<SyncedAssignment[]>([]);
+  const [aiClassesRaw, setAiClassesRaw] = useState<SyncedClass[]>([]);
+  const [aiEventsRaw, setAiEventsRaw] = useState<SyncedEvent[]>([]);
+  const [aiPostsRaw, setAiPostsRaw] = useState<ChannelPost[]>([]);
+  const [aiSummary, setAiSummary] = useState<AISummaryCache | null>(null);
+
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isOfflineState, setIsOfflineState] = useState(isOffline());
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(getLastSyncedAt());
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() =>
+    isLocalMode ? getLocalLastSyncedAt() : getLastSyncedAt()
+  );
   const [error, setError] = useState<string | null>(null);
 
-  // Hydrate from cache on mount
+  // Hydrate folder cache on mount
   useEffect(() => {
-    const cachedAssignments = getCachedAssignments();
-    const cachedClasses = getCachedClasses();
-    const cachedEvents = getCachedCalendarEvents();
+    if (isLocalMode) {
+      const cachedAssignments = getCachedLocalAssignments();
+      const cachedClasses = getCachedLocalClasses();
+      const cachedEvents = getCachedLocalCalendarEvents();
+      const cachedPosts = getCachedLocalPosts();
 
-    if (cachedAssignments.length) setAssignments(mapAssignments(cachedAssignments));
-    if (cachedClasses.length) setClasses(mapClasses(cachedClasses));
-    if (cachedEvents.length) setEvents(mapEvents(cachedEvents));
+      if (cachedAssignments.length) setFolderAssignments(mapAssignments(cachedAssignments));
+      if (cachedClasses.length) setFolderClasses(mapClasses(cachedClasses));
+      if (cachedEvents.length) setFolderEvents(mapEvents(cachedEvents));
+      if (cachedPosts.length) setFolderPosts(mapPosts(cachedPosts));
+    } else {
+      const cachedAssignments = getCachedAssignments();
+      const cachedClasses = getCachedClasses();
+      const cachedEvents = getCachedCalendarEvents();
+
+      if (cachedAssignments.length) setFolderAssignments(mapAssignments(cachedAssignments));
+      if (cachedClasses.length) setFolderClasses(mapClasses(cachedClasses));
+      if (cachedEvents.length) setFolderEvents(mapEvents(cachedEvents));
+    }
+  }, [isLocalMode]);
+
+  // Hydrate AI cache on mount
+  useEffect(() => {
+    const cache = getAICache();
+    if (!cache) return;
+
+    if (cache.assignments?.length) setAiAssignmentsRaw(mapAssignments(cache.assignments));
+    if (cache.classes?.length) setAiClassesRaw(mapClasses(cache.classes));
+    if (cache.calendarEvents?.length) setAiEventsRaw(mapEvents(cache.calendarEvents));
+    if (cache.posts?.length) setAiPostsRaw(mapPosts(cache.posts));
+    if (cache.summary) setAiSummary(cache.summary);
   }, []);
 
   // Listen for online/offline
@@ -119,15 +201,55 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Auto-sync when MSAL account becomes available
+  // Auto-sync when MSAL account becomes available (Teams mode)
   useEffect(() => {
-    if (msalAccount && isAuthenticated && !isCacheFresh() && !isOfflineState) {
+    if (!isLocalMode && msalAccount && isAuthenticated && !isCacheFresh() && !isOfflineState) {
       sync();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [msalAccount, isAuthenticated]);
+  }, [msalAccount, isAuthenticated, isLocalMode]);
+
+  // Auto-sync on mount when using local folders and cache is stale
+  useEffect(() => {
+    if (isLocalMode && !isLocalCacheFresh() && !isOfflineState) {
+      sync();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocalMode]);
 
   const sync = useCallback(async () => {
+    if (isLocalMode) {
+      if (!localUserId) {
+        setError('Local user is not configured. Set VITE_LOCAL_USER_ID in your environment.');
+        return;
+      }
+
+      setIsSyncing(true);
+      setError(null);
+
+      try {
+        const result = await syncAllLocal(localUserId);
+
+        if (result.success || result.assignments.length > 0) {
+          setFolderAssignments(mapAssignments(result.assignments));
+          setFolderClasses(mapClasses(result.classes));
+          setFolderEvents(mapEvents(result.calendarEvents));
+          setFolderPosts(mapPosts(result.posts));
+          setLastSyncedAt(new Date().toISOString());
+        }
+
+        if (!result.success && result.error) {
+          setError(result.error);
+        }
+      } catch (err: any) {
+        setError(err?.message || 'Local sync failed.');
+      } finally {
+        setIsSyncing(false);
+      }
+      return;
+    }
+
+    // Microsoft Teams Graph sync
     if (!msalAccount) {
       setError('Microsoft account not connected. Please sign in with Microsoft.');
       return;
@@ -144,9 +266,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const result = await syncAll(msalAccount);
 
       if (result.success || result.assignments.length > 0) {
-        setAssignments(mapAssignments(result.assignments));
-        setClasses(mapClasses(result.classes));
-        setEvents(mapEvents(result.calendarEvents));
+        setFolderAssignments(mapAssignments(result.assignments));
+        setFolderClasses(mapClasses(result.classes));
+        setFolderEvents(mapEvents(result.calendarEvents));
         setLastSyncedAt(new Date().toISOString());
       }
 
@@ -158,16 +280,76 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSyncing(false);
     }
-  }, [msalAccount, isOfflineState]);
+  }, [isLocalMode, localUserId, msalAccount, isOfflineState]);
+
+  const analyze = useCallback(async () => {
+    if (!localUserId) {
+      setError('Local user is not configured. Set VITE_LOCAL_USER_ID in your environment.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const response = await analyzeFiles(localUserId);
+
+      if (response.syncPayload) {
+        const mappedAssignments = mapAssignments(response.syncPayload.assignments ?? []);
+        const mappedClasses = mapClasses(response.syncPayload.classes ?? []);
+        const mappedEvents = mapEvents(response.syncPayload.calendarEvents ?? []);
+        const mappedPosts = mapPosts(response.syncPayload.posts ?? []);
+
+        setAiAssignmentsRaw(mappedAssignments);
+        setAiClassesRaw(mappedClasses);
+        setAiEventsRaw(mappedEvents);
+        setAiPostsRaw(mappedPosts);
+
+        saveAICache({
+          generatedAt: response.generatedAt,
+          userId: localUserId,
+          assignments: response.syncPayload.assignments ?? [],
+          classes: response.syncPayload.classes ?? [],
+          calendarEvents: response.syncPayload.calendarEvents ?? [],
+          posts: response.syncPayload.posts ?? [],
+          summary: response.summary,
+        });
+      }
+
+      setAiSummary(response.summary ?? null);
+    } catch (err: any) {
+      setError(err?.message || 'File analysis failed.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [localUserId]);
 
   const clear = useCallback(() => {
-    clearCache();
-    setAssignments([]);
-    setClasses([]);
-    setEvents([]);
+    if (isLocalMode) {
+      clearLocalCache();
+    } else {
+      clearCache();
+    }
+    clearAICache();
+    setFolderAssignments([]);
+    setFolderClasses([]);
+    setFolderEvents([]);
+    setFolderPosts([]);
+    setAiAssignmentsRaw([]);
+    setAiClassesRaw([]);
+    setAiEventsRaw([]);
+    setAiPostsRaw([]);
+    setAiSummary(null);
     setLastSyncedAt(null);
     setError(null);
-  }, []);
+  }, [isLocalMode]);
+
+  const assignments = useMemo(() => mergeById(folderAssignments, aiAssignmentsRaw), [folderAssignments, aiAssignmentsRaw]);
+  const classes = useMemo(() => mergeById(folderClasses, aiClassesRaw), [folderClasses, aiClassesRaw]);
+  const events = useMemo(() => mergeById(folderEvents, aiEventsRaw), [folderEvents, aiEventsRaw]);
+  const posts = useMemo(() => mergeById(folderPosts, aiPostsRaw), [folderPosts, aiPostsRaw]);
+
+  const source: SyncContextValue['source'] = isLocalMode ? 'local' : msalAccount ? 'teams' : 'none';
 
   return (
     <SyncContext.Provider
@@ -175,12 +357,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         assignments,
         classes,
         events,
+        posts,
+        aiAssignments: aiAssignmentsRaw,
+        aiEvents: aiEventsRaw,
+        aiPosts: aiPostsRaw,
+        aiSummary,
         isSyncing,
+        isAnalyzing,
         isOffline: isOfflineState,
         lastSyncedAt,
         error,
         sync,
         clear,
+        analyze,
+        source,
+        localUserId,
       }}
     >
       {children}

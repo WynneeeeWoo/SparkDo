@@ -80,11 +80,34 @@ export interface SyncedEvent {
   bodyPreview?: string;
 }
 
+export interface ChannelPost {
+  id: string;
+  subject: string;
+  content: string;
+  className: string;
+  postedAt: string;
+  author?: string;
+  attachments: string[];
+}
+
+export interface AISummaryCache {
+  today: any[];
+  upcoming: any[];
+  crossSubject: any;
+  recentActivities: any[];
+}
+
 export interface SyncState {
   assignments: SyncedAssignment[];
   classes: SyncedClass[];
   events: SyncedEvent[];
+  posts: ChannelPost[];
+  aiAssignments: SyncedAssignment[];
+  aiEvents: SyncedEvent[];
+  aiPosts: ChannelPost[];
+  aiSummary: AISummaryCache | null;
   isSyncing: boolean;
+  isAnalyzing: boolean;
   isOffline: boolean;
   lastSyncedAt: string | null;
   error: string | null;

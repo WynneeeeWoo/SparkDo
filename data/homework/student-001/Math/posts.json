@@ -1,0 +1,41 @@
+{
+  "subject": "Math",
+  "description": "Advanced Calculus and Algebra",
+  "posts": [
+    {
+      "id": "math-001",
+      "type": "assignment",
+      "title": "Fourier Series Problem Set",
+      "content": "Complete Exercises 4.1–4.9 focusing on periodic functions. Show all working.",
+      "assignedDateTime": "2026-06-10T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 100,
+      "attachments": [
+        "problem_set_4.pdf"
+      ],
+      "dueDateTime": "2026-06-15T23:59:00+08:00"
+    },
+    {
+      "id": "math-002",
+      "type": "assignment",
+      "title": "Linear Algebra Quiz Review",
+      "content": "Review eigenvalues and eigenvectors. Practice questions handed out in class.",
+      "assignedDateTime": "2026-06-12T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 50,
+      "attachments": [
+        "eigenvalues_practice.pdf"
+      ],
+      "dueDateTime": "2026-06-19T23:59:00+08:00"
+    },
+    {
+      "id": "math-003",
+      "type": "post",
+      "title": "Calculator reminder",
+      "content": "Bring a scientific calculator for tomorrow's quiz.",
+      "postedAt": "2026-06-13T00:00:00+08:00",
+      "author": "Mr. Tan",
+      "attachments": []
+    }
+  ]
+}

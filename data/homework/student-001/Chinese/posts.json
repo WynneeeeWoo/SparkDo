@@ -1,0 +1,39 @@
+{
+  "subject": "Chinese",
+  "description": "Mandarin Language and Literature",
+  "posts": [
+    {
+      "id": "chi-001",
+      "type": "assignment",
+      "title": "《背影》 Reading Response",
+      "content": "Write a 300-character reflection on the theme of father-son relationships.",
+      "assignedDateTime": "2026-06-11T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 40,
+      "attachments": [],
+      "dueDateTime": "2026-06-14T23:59:00+08:00"
+    },
+    {
+      "id": "chi-002",
+      "type": "assignment",
+      "title": "Vocabulary Dictation 6",
+      "content": "Memorise characters 1–30 on list 6.",
+      "assignedDateTime": "2026-06-13T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 30,
+      "attachments": [
+        "vocab_list_6.pdf"
+      ],
+      "dueDateTime": "2026-06-21T23:59:00+08:00"
+    },
+    {
+      "id": "chi-003",
+      "type": "post",
+      "title": "Culture club notice",
+      "content": "Calligraphy workshop this Friday after school.",
+      "postedAt": "2026-06-12T00:00:00+08:00",
+      "author": "Ms. Li",
+      "attachments": []
+    }
+  ]
+}

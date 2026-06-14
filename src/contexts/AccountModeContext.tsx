@@ -18,6 +18,14 @@ const labels: Record<AccountMode, string> = {
   personal: 'Personal',
 };
 
+function isLocalMode(): boolean {
+  try {
+    return Boolean((import.meta.env as any).VITE_LOCAL_USER_ID);
+  } catch {
+    return false;
+  }
+}
+
 const AccountModeContext = createContext<AccountModeContextValue>({
   mode: 'child',
   setMode: () => {},
@@ -46,7 +54,7 @@ export function AccountModeProvider({ children }: { children: React.ReactNode })
     mode,
     setMode,
     label: labels[mode],
-    canSync: mode === 'child',
+    canSync: mode === 'child' || isLocalMode(),
     isReadOnly: mode === 'parent',
   };
 

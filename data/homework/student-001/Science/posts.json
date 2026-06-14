@@ -1,0 +1,41 @@
+{
+  "subject": "Science",
+  "description": "Integrated Science: Physics, Chemistry and Biology",
+  "posts": [
+    {
+      "id": "sci-001",
+      "type": "assignment",
+      "title": "Photosynthesis Lab Report",
+      "content": "Write up the photosynthesis experiment, including results and conclusion.",
+      "assignedDateTime": "2026-06-08T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 90,
+      "attachments": [
+        "lab_template.docx"
+      ],
+      "dueDateTime": "2026-06-17T23:59:00+08:00"
+    },
+    {
+      "id": "sci-002",
+      "type": "assignment",
+      "title": "Forces and Motion Worksheet",
+      "content": "Complete the worksheet on Newton's laws.",
+      "assignedDateTime": "2026-06-13T00:00:00+08:00",
+      "status": "assigned",
+      "maxPoints": 60,
+      "attachments": [
+        "forces_worksheet.pdf"
+      ],
+      "dueDateTime": "2026-06-24T23:59:00+08:00"
+    },
+    {
+      "id": "sci-003",
+      "type": "post",
+      "title": "Lab safety reminder",
+      "content": "Wear goggles and closed-toe shoes in the lab.",
+      "postedAt": "2026-06-13T00:00:00+08:00",
+      "author": "Dr. Wong",
+      "attachments": []
+    }
+  ]
+}

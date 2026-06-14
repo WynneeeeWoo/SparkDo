@@ -36,6 +36,9 @@ export interface AIAnalysisResult {
   recentActivities: AIActivity[];
 }
 
+const MODEL = 'qwen3.5-397b-a17b';
+const BASE_URL = 'https://qianfan.baidubce.com/v2';
+
 const SYSTEM_PROMPT = `You are an academic assistant that extracts homework, deadlines, and recent activities from school files.
 
 Current date: {CURRENT_DATE}
@@ -128,31 +131,34 @@ function normalizeResult(raw: any): AIAnalysisResult {
   };
 }
 
-export class KimiAnalyzerError extends Error {
+export class LLMAnalyzerError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'KimiAnalyzerError';
+    this.name = 'LLMAnalyzerError';
   }
 }
 
-export async function analyzeFilesWithKimi(files: ExtractedFile[]): Promise<AIAnalysisResult> {
-  const apiKey = process.env.MOONSHOT_API_KEY;
-  const baseURL = process.env.MOONSHOT_BASE_URL || 'https://api.moonshot.cn/v1';
-  const model = process.env.MOONSHOT_MODEL || 'kimi-k2.6';
+export async function analyzeFilesWithLLM(files: ExtractedFile[]): Promise<AIAnalysisResult> {
+  const apiKey = process.env.API_KEY;
+  const appId = process.env.APP_ID;
 
   if (!apiKey) {
-    throw new KimiAnalyzerError('MOONSHOT_API_KEY is not configured.');
+    throw new LLMAnalyzerError('API_KEY is not configured.');
   }
 
   if (files.length === 0) {
-    throw new KimiAnalyzerError('No files provided for analysis.');
+    throw new LLMAnalyzerError('No files provided for analysis.');
   }
 
-  const client = new OpenAI({ apiKey, baseURL });
+  const client = new OpenAI({
+    apiKey,
+    baseURL: BASE_URL,
+    defaultHeaders: { appid: appId || '' },
+  });
 
   try {
     const response = await client.chat.completions.create({
-      model,
+      model: MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT.replace('{CURRENT_DATE}', formatCurrentDate()) },
         { role: 'user', content: buildUserPrompt(files) },
@@ -163,7 +169,7 @@ export async function analyzeFilesWithKimi(files: ExtractedFile[]): Promise<AIAn
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new KimiAnalyzerError('Kimi returned an empty response.');
+      throw new LLMAnalyzerError('Model returned an empty response.');
     }
 
     const jsonText = extractJsonBlock(content);
@@ -171,12 +177,12 @@ export async function analyzeFilesWithKimi(files: ExtractedFile[]): Promise<AIAn
     try {
       parsed = JSON.parse(jsonText);
     } catch (err: any) {
-      throw new KimiAnalyzerError(`Kimi returned invalid JSON: ${err?.message || 'parse error'}`);
+      throw new LLMAnalyzerError(`Model returned invalid JSON: ${err?.message || 'parse error'}`);
     }
 
     return normalizeResult(parsed);
   } catch (err: any) {
-    if (err instanceof KimiAnalyzerError) throw err;
-    throw new KimiAnalyzerError(err?.message || 'Kimi analysis request failed.');
+    if (err instanceof LLMAnalyzerError) throw err;
+    throw new LLMAnalyzerError(err?.message || 'LLM analysis request failed.');
   }
 }

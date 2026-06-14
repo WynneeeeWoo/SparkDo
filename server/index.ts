@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { extractFilesForUser } from './services/fileExtractor';
-import { analyzeFilesWithKimi } from './services/kimiAnalyzer';
+import { analyzeFilesWithLLM } from './services/llmAnalyzer';
 import { writeSummary } from './services/summaryWriter';
 import { buildAISyncPayload } from './services/aiSyncBuilder';
 
@@ -316,7 +316,7 @@ app.post('/api/analyze/:userId', async (req: Request, res: Response) => {
       });
     }
 
-    const result = await analyzeFilesWithKimi(readableFiles);
+    const result = await analyzeFilesWithLLM(readableFiles);
     const summary = await writeSummary(userId, DATA_ROOT, result, files);
     const syncPayload = buildAISyncPayload(result);
 

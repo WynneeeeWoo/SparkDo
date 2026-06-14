@@ -1,4 +1,4 @@
-import type { AIAnalysisResult, AIAssignment, AIActivity } from './kimiAnalyzer';
+import type { AIAnalysisResult, AIAssignment, AIActivity } from './llmAnalyzer';
 
 export interface GraphAssignment {
   id: string;

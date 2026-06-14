@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import type { AIAnalysisResult } from './kimiAnalyzer';
+import type { AIAnalysisResult } from './llmAnalyzer';
 import type { ExtractedFile } from './fileExtractor';
 
 export interface SummaryFiles {

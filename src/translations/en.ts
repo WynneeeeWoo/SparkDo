@@ -85,6 +85,7 @@ export const en = {
   'tasks.completedCount': '{{completed}} of {{total}} completed',
   'tasks.urgent.title': 'Urgent — Needs Attention',
   'tasks.todoList.title': 'My To-Do List',
+  'tasks.todoList.addPlaceholder': 'Add a new task...',
   'tasks.recentItems.title': 'Recent Items',
   'tasks.recentItems.empty': 'No assignments yet. {{action}}',
   'tasks.recentItems.emptyAction.sync': 'Press Sync to load your data.',

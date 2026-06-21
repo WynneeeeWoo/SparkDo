@@ -86,6 +86,7 @@ export const zh: Record<TranslationKey, string> = {
   'tasks.completedCount': '已完成 {{completed}} / {{total}}',
   'tasks.urgent.title': '紧急 — 需要关注',
   'tasks.todoList.title': '我的待办清单',
+  'tasks.todoList.addPlaceholder': '添加新任务...',
   'tasks.recentItems.title': '最近项目',
   'tasks.recentItems.empty': '还没有作业。{{action}}',
   'tasks.recentItems.emptyAction.sync': '点击同步以加载你的数据。',

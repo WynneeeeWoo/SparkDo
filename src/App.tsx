@@ -18,7 +18,9 @@ import {
   MessageSquare,
   X,
   Globe,
-  FileText
+  FileText,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
@@ -238,12 +240,31 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   const { mode, label, canSync, isReadOnly } = useAccountMode();
   const { t } = useLanguage();
   const [todos, setTodos] = useState<TodoItem[]>(getStoredTodos);
+  const [newTodo, setNewTodo] = useState('');
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t('greeting.morning') : hour < 18 ? t('greeting.afternoon') : t('greeting.evening');
 
   const toggleTodo = (id: string) => {
     setTodos((prev) => {
       const next = prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
+      saveTodos(next);
+      return next;
+    });
+  };
+
+  const addTodo = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setTodos((prev) => {
+      const next = [...prev, { id: crypto.randomUUID(), text: trimmed, completed: false }];
+      saveTodos(next);
+      return next;
+    });
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos((prev) => {
+      const next = prev.filter((t) => t.id !== id);
       saveTodos(next);
       return next;
     });
@@ -363,20 +384,52 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
       {/* My To-Do List */}
       <section className="space-y-4">
         <h3 className="text-xl font-black text-on-surface">{t('tasks.todoList.title')}</h3>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTodo(newTodo);
+            setNewTodo('');
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={newTodo}
+            onChange={(e) => setNewTodo(e.target.value)}
+            placeholder={t('tasks.todoList.addPlaceholder')}
+            className="flex-1 px-4 py-3 rounded-2xl bg-white border border-outline-variant/10 shadow-sm text-sm font-bold text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={!newTodo.trim()}
+            className="px-4 py-3 rounded-2xl bg-primary text-on-primary font-bold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus size={20} />
+          </button>
+        </form>
         <div className="space-y-2">
           {todos.map((todo) => (
-            <button
+            <div
               key={todo.id}
-              onClick={() => toggleTodo(todo.id)}
-              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-white border border-outline-variant/10 shadow-sm hover:shadow-md transition-all text-left"
+              className="group flex items-center gap-3 p-4 rounded-2xl bg-white border border-outline-variant/10 shadow-sm hover:shadow-md transition-all"
             >
-              <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}>
+              <button
+                onClick={() => toggleTodo(todo.id)}
+                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30 hover:border-primary'}`}
+              >
                 {todo.completed && <Check size={14} strokeWidth={3} />}
-              </div>
-              <span className={`font-bold text-sm ${todo.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
+              </button>
+              <span className={`flex-1 text-left font-bold text-sm ${todo.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
                 {todo.text}
               </span>
-            </button>
+              <button
+                onClick={() => deleteTodo(todo.id)}
+                className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-on-surface-variant hover:bg-red-50 hover:text-red-500 transition-all"
+                aria-label="Delete task"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           ))}
         </div>
       </section>

@@ -17,7 +17,8 @@ import {
   Home,
   MessageSquare,
   X,
-  Globe
+  Globe,
+  FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
@@ -169,6 +170,27 @@ function getWeekEnd(): Date {
   return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
 }
 
+function AttachmentLinks({ attachments, userId, className }: { attachments?: string[], userId: string | null, className?: string }) {
+  if (!userId || !attachments || attachments.length === 0 || !className) return null;
+  return (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {attachments.map((file) => (
+        <a
+          key={file}
+          href={`/api/files/${encodeURIComponent(userId)}/${encodeURIComponent(className)}/${encodeURIComponent(file)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-container-low text-[10px] font-bold text-on-surface-variant hover:bg-primary-container hover:text-on-primary-container transition-colors"
+        >
+          <FileText size={12} />
+          <span className="truncate max-w-[120px]">{file}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 // --- Tasks View (Homepage) ---
 
 interface TodoItem {
@@ -200,7 +222,7 @@ function saveTodos(todos: TodoItem[]) {
   localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
 }
 
-const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer, onToggleAssignment }: {
+const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer, onToggleAssignment, localUserId }: {
   assignments: any[],
   posts: any[],
   aiSummary: any,
@@ -211,6 +233,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   onAnalyze: () => void,
   onOpenFocusTimer: () => void,
   onToggleAssignment: (id: string) => void,
+  localUserId: string | null,
 }) => {
   const { mode, label, canSync, isReadOnly } = useAccountMode();
   const { t } = useLanguage();
@@ -328,6 +351,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                 <div className="flex-1">
                   <h4 className="font-bold text-on-surface text-sm">{task.title}</h4>
                   <p className="text-xs text-red-600 mt-0.5">{formatDueDate(task.dueDateTime, t)} • {task.className || t('common.general')}</p>
+                  <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
                 </div>
                 <span className="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest shrink-0">{task.priority}</span>
               </div>
@@ -378,6 +402,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                     <div>
                       <h4 className={`font-bold text-sm ${task.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{task.title}</h4>
                       <p className="text-xs text-on-surface-variant mt-0.5">{task.className || t('common.general')} • {formatDueDate(task.dueDateTime, t)}</p>
+                      <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
@@ -525,6 +550,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-on-surface truncate">{item.title || item.subject}</p>
                     <p className="text-xs text-on-surface-variant">{item.course || item.className || 'School'}</p>
+                    <AttachmentLinks attachments={item.attachments} userId={localUserId} className={item.className} />
                   </div>
                 </div>
                 <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
@@ -562,7 +588,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 
 // --- Calendar View ---
 
-const CalendarView = ({ events, assignments }: { events: any[], assignments: any[] }) => {
+const CalendarView = ({ events, assignments, localUserId }: { events: any[], assignments: any[], localUserId: string | null }) => {
   const { language, t } = useLanguage();
   const weekStart = getWeekStart();
   const weekEnd = getWeekEnd();
@@ -720,6 +746,7 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
                         <div className="flex-1 min-w-0">
                           <h4 className={`font-bold text-sm ${task.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{task.title}</h4>
                           <p className="text-xs text-on-surface-variant mt-0.5">{task.className || t('common.general')} • {formatDueDate(task.dueDateTime, t)}</p>
+                          <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
                           task.priority === 'urgent' ? 'bg-red-100 text-red-600' :
@@ -756,6 +783,7 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
                 <div className="flex-1">
                   <p className="font-bold text-sm text-on-surface">{task.title}</p>
                   <p className="text-xs text-on-surface-variant">{task.className || t('common.general')}</p>
+                  <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
                 </div>
                 <span className="text-sm font-bold text-primary">{formatDueDate(task.dueDateTime, t)}</span>
               </div>
@@ -927,7 +955,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
 export default function App() {
   const { t } = useLanguage();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source, toggleAssignment } = useSync();
+  const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source, toggleAssignment, localUserId } = useSync();
   const [view, setView] = useState<View>('tasks');
   const [focusTimerOpen, setFocusTimerOpen] = useState(false);
 
@@ -965,13 +993,13 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'tasks':
-        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} localUserId={localUserId} />;
       case 'calendar':
-        return <CalendarView events={events} assignments={assignments} />;
+        return <CalendarView events={events} assignments={assignments} localUserId={localUserId} />;
       case 'profile':
         return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} source={source} />;
       default:
-        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} localUserId={localUserId} />;
     }
   };
 

@@ -61,6 +61,7 @@ export interface SyncedAssignment {
   classId?: string;
   status?: string;
   maxPoints?: number;
+  attachments?: string[];
 }
 
 export interface SyncedClass {

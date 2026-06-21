@@ -75,6 +75,7 @@ function mapAssignments(raw: any[]): SyncedAssignment[] {
       classId: a.classId,
       status: a.status,
       maxPoints: a.maxPoints,
+      attachments: a.attachments || [],
     };
   });
 }

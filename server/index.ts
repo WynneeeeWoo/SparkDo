@@ -56,6 +56,7 @@ interface GraphAssignment {
   maxPoints?: number;
   className?: string;
   classId?: string;
+  attachments?: string[];
 }
 
 interface GraphClass {
@@ -165,6 +166,7 @@ function buildSyncPayload(subjects: LocalSubject[]): SyncPayload {
           maxPoints: post.maxPoints,
           className: subject.subject,
           classId,
+          attachments: post.attachments || [],
         };
         assignments.push(assignment);
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Link2, Copy, Check, Trash2 } from 'lucide-react';
+import { X, Link2, Copy, Check, Trash2, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useShare } from '../contexts/ShareContext';
 
@@ -13,13 +13,21 @@ interface ShareModalProps {
   onClose: () => void;
 }
 
+function generateSharePin() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export default function ShareModal({ userId, assignments, posts, classes, events, onClose }: ShareModalProps) {
   const { t } = useLanguage();
   const { create, activeShare, revoke } = useShare();
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState(() => generateSharePin());
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!activeShare) setPin(generateSharePin());
+  }, [activeShare]);
 
   const storedTodos = (() => {
     try {
@@ -36,6 +44,8 @@ export default function ShareModal({ userId, assignments, posts, classes, events
       return {};
     }
   })();
+
+  const regeneratePin = useCallback(() => setPin(generateSharePin()), []);
 
   const handleCreate = async () => {
     setError('');
@@ -76,6 +86,7 @@ export default function ShareModal({ userId, assignments, posts, classes, events
   return (
     <AnimatePresence>
       <motion.div
+        key="share-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -83,6 +94,7 @@ export default function ShareModal({ userId, assignments, posts, classes, events
         className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
       />
       <motion.div
+        key="share-modal"
         initial={{ opacity: 0, y: 24, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -145,24 +157,25 @@ export default function ShareModal({ userId, assignments, posts, classes, events
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-on-surface-variant">
-                Create a shareable link so a parent can view your homework and to-do list. The link expires in 30 days.
+                A new share code is generated for you each month. It is unique to your account and expires with the share link.
               </p>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Set a 4-6 digit PIN</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d*"
-                  maxLength={6}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="4-6 digit PIN"
-                  className="w-full px-4 py-4 text-center text-2xl font-black tracking-[0.2em] bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                />
+              <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">This month&apos;s share code</p>
+                  <button
+                    onClick={regeneratePin}
+                    className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors"
+                    title="Generate new code"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+                <p className="text-3xl font-black tracking-[0.25em] text-on-surface text-center">{pin}</p>
+                <p className="text-xs text-on-surface-variant text-center">6-digit PIN for the parent view</p>
               </div>
               <button
                 onClick={handleCreate}
-                disabled={creating || pin.length < 4}
+                disabled={creating}
                 className="w-full py-4 bg-primary text-on-primary rounded-2xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95 disabled:opacity-60"
               >
                 {creating ? 'Creating...' : <><Link2 size={18} /> Create Share Link</>}

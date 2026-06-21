@@ -71,7 +71,6 @@ export const en = {
   // Account modes
   'mode.child': 'Student Mode',
   'mode.parent': 'Parent Mode',
-  'mode.personal': 'Personal Mode',
   'mode.readOnly': 'Read Only',
 
   // Home / Tasks
@@ -110,6 +109,7 @@ export const en = {
   'calendar.thisWeekEmpty': 'No deadlines this week',
   'calendar.longTerm.title': 'Long-term Deadlines',
   'calendar.longTerm.empty': "No upcoming long-term deadlines. You're all caught up!",
+  'calendar.schoolEvents.title': 'School Events',
   'calendar.dayDetail.title': '{{day}} {{month}}',
   'calendar.dayDetail.count': '{{count}} assignment{{suffix}}',
   'calendar.dayDetail.empty': 'No assignments due on this day.',
@@ -122,8 +122,6 @@ export const en = {
   'profile.mode.student.description': 'Full access to assignments, Teams sync, and school activities',
   'profile.mode.parent.title': 'Parent',
   'profile.mode.parent.description': "Read-only overview of your child's tasks and deadlines",
-  'profile.mode.personal.title': 'Personal',
-  'profile.mode.personal.description': 'Private tasks and calendar without school integration',
   'profile.signOut': 'Sign Out',
   'profile.syncStatus.localFolder': 'Local Folder',
   'profile.syncStatus.teams': 'Microsoft Teams',

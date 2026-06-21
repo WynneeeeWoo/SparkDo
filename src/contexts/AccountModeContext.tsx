@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type AccountMode = 'child' | 'parent' | 'personal';
+export type AccountMode = 'child' | 'parent';
 
 interface AccountModeContextValue {
   mode: AccountMode;
@@ -15,7 +15,6 @@ const STORAGE_KEY = 'sparkdo_account_mode';
 const labels: Record<AccountMode, string> = {
   child: 'Student',
   parent: 'Parent',
-  personal: 'Personal',
 };
 
 function isLocalMode(): boolean {
@@ -38,7 +37,7 @@ export function AccountModeProvider({ children }: { children: React.ReactNode })
   const [mode, setModeState] = useState<AccountMode>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY) as AccountMode;
-      if (stored && ['child', 'parent', 'personal'].includes(stored)) return stored;
+      if (stored && ['child', 'parent'].includes(stored)) return stored;
     } catch { /* ignore */ }
     return 'child';
   });

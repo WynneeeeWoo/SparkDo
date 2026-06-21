@@ -72,7 +72,6 @@ export const zh: Record<TranslationKey, string> = {
   // Account modes
   'mode.child': '学生模式',
   'mode.parent': '家长模式',
-  'mode.personal': '个人模式',
   'mode.readOnly': '只读',
 
   // Home / Tasks
@@ -111,6 +110,7 @@ export const zh: Record<TranslationKey, string> = {
   'calendar.thisWeekEmpty': '本周没有到期作业',
   'calendar.longTerm.title': '长期截止日期',
   'calendar.longTerm.empty': '没有即将到来的长期截止日期。你已经全部完成了！',
+  'calendar.schoolEvents.title': '学校活动',
   'calendar.dayDetail.title': '{{month}}{{day}}日',
   'calendar.dayDetail.count': '{{count}} 项作业',
   'calendar.dayDetail.empty': '这一天没有到期作业。',
@@ -123,8 +123,6 @@ export const zh: Record<TranslationKey, string> = {
   'profile.mode.student.description': '完全访问作业、Teams 同步和学校活动',
   'profile.mode.parent.title': '家长',
   'profile.mode.parent.description': '只读查看孩子的任务和截止日期',
-  'profile.mode.personal.title': '个人',
-  'profile.mode.personal.description': '没有学校集成的私人任务和日历',
   'profile.signOut': '退出登录',
   'profile.syncStatus.localFolder': '本地文件夹',
   'profile.syncStatus.teams': '微软 Teams',

@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Flame,
   School,
-  Briefcase,
   Home,
   MessageSquare,
   X,
@@ -457,47 +456,29 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </div>
       </section>
 
-      {/* School Updates: Channel Posts + Activities */}
-      {(posts.length > 0 || canSync) && (
+      {/* Recent Channel Posts */}
+      {posts.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <MessageSquare size={20} className="text-primary" />
-            <h3 className="text-xl font-black text-on-surface">{t('tasks.schoolUpdates.title')}</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.channelPosts.title')}</h3>
           </div>
-          {posts.length > 0 && (
-            <div className="space-y-3">
-              {posts
-                .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
-                .slice(0, 5)
-                .map((post: any) => (
-                  <div key={post.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
-                        <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt, t)}</p>
-                        <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
-                      </div>
+          <div className="space-y-3">
+            {posts
+              .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
+              .slice(0, 5)
+              .map((post: any) => (
+                <div key={post.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt, t)}</p>
+                      <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
                     </div>
                   </div>
-                ))}
-            </div>
-          )}
-          {canSync && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {CLASSES.slice(0, 4).map((cls) => (
-                <div key={cls.id} className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm flex items-center gap-4">
-                  <div className={`w-12 h-12 bg-surface-container-low rounded-xl flex items-center justify-center ${cls.color} font-bold shadow-sm`}>
-                    {cls.code}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-sm text-on-surface">{cls.name}</h4>
-                    <p className="text-xs text-on-surface-variant">{cls.channel} • {cls.syncsToday} updates today</p>
-                  </div>
-                  <ChevronRight size={18} className="text-outline" />
                 </div>
               ))}
-            </div>
-          )}
+          </div>
         </section>
       )}
 
@@ -595,7 +576,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 
 // --- Calendar View ---
 
-const CalendarView = ({ events, assignments, localUserId }: { events: any[], assignments: any[], localUserId: string | null }) => {
+const CalendarView = ({ events, assignments, classes, localUserId }: { events: any[], assignments: any[], classes: any[], localUserId: string | null }) => {
   const { language, t } = useLanguage();
   const weekStart = getWeekStart();
   const weekEnd = getWeekEnd();
@@ -617,7 +598,12 @@ const CalendarView = ({ events, assignments, localUserId }: { events: any[], ass
   const getAssignmentsForDay = (day: number) =>
     assignments.filter((a: any) => a.dueDateTime && new Date(a.dueDateTime).getDate() === day);
 
-  const selectedAssignments = selectedDay !== null ? getAssignmentsForDay(selectedDay) : [];
+  const getEventsForDay = (day: number) =>
+    events.filter((e: any) => e.startDateTime && new Date(e.startDateTime).getDate() === day);
+
+  const selectedDayItems = selectedDay !== null
+    ? [...getAssignmentsForDay(selectedDay), ...getEventsForDay(selectedDay)]
+    : [];
 
   return (
     <motion.div
@@ -673,39 +659,22 @@ const CalendarView = ({ events, assignments, localUserId }: { events: any[], ass
 
             if (day < 1 || day > 30) return <div key={i} className="aspect-square" />;
 
+            const isInteractive = !isToday && (hasEvent || hasDeadline);
+
             return (
               <button
                 key={i}
-                onClick={() => dayAssignments.length > 0 && setSelectedDay(day)}
-                disabled={dayAssignments.length === 0}
+                onClick={() => isInteractive && setSelectedDay(day)}
+                disabled={!isInteractive && !isToday}
                 className={`aspect-square rounded-2xl p-2 relative text-left transition-all ${
                   isToday
                     ? 'bg-primary text-on-primary scale-105 z-10 shadow-lg shadow-primary/20'
-                    : 'bg-white hover:bg-surface-container-high disabled:opacity-60 disabled:hover:bg-white'
+                    : isInteractive
+                      ? 'bg-white border-2 border-primary hover:bg-surface-container-high'
+                      : 'bg-white hover:bg-surface-container-high disabled:opacity-60 disabled:hover:bg-white'
                 }`}
               >
                 <span className={`font-bold text-sm ${isToday ? 'text-white' : 'text-on-surface'}`}>{day}</span>
-                <div className="mt-1 space-y-0.5 overflow-hidden">
-                  {dayAssignments.slice(0, 2).map((task: any) => (
-                    <p
-                      key={task.id}
-                      className={`text-[9px] font-bold truncate leading-tight ${
-                        isToday ? 'text-on-primary/90' : task.completed ? 'text-on-surface-variant line-through' : 'text-on-surface'
-                      }`}
-                      title={task.title}
-                    >
-                      {task.title}
-                    </p>
-                  ))}
-                  {dayAssignments.length > 2 && (
-                    <p className={`text-[9px] font-bold ${isToday ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>
-                      +{dayAssignments.length - 2} {t('common.more')}
-                    </p>
-                  )}
-                </div>
-                {(hasEvent || hasDeadline) && !isToday && (
-                  <div className={`absolute bottom-2 left-2 right-2 h-1 rounded-full ${hasDeadline ? 'bg-red-400' : 'bg-primary-container'}`} />
-                )}
               </button>
             );
           })}
@@ -733,7 +702,7 @@ const CalendarView = ({ events, assignments, localUserId }: { events: any[], ass
                 <div>
                   <h3 className="text-xl font-black text-on-surface">{t('calendar.dayDetail.title', { day: selectedDay, month: new Date().toLocaleDateString(language === 'zh' ? 'zh-CN' : undefined, { month: 'long' }) })}</h3>
                   <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mt-0.5">
-                    {t('calendar.dayDetail.count', { count: selectedAssignments.length, suffix: selectedAssignments.length !== 1 ? 's' : '' })}
+                    {t('calendar.dayDetail.count', { count: selectedDayItems.length, suffix: selectedDayItems.length !== 1 ? 's' : '' })}
                   </p>
                 </div>
                 <button
@@ -744,36 +713,66 @@ const CalendarView = ({ events, assignments, localUserId }: { events: any[], ass
                 </button>
               </div>
               <div className="overflow-y-auto p-5 space-y-3">
-                {selectedAssignments.length === 0 ? (
+                {selectedDayItems.length === 0 ? (
                   <p className="text-sm text-on-surface-variant">{t('calendar.dayDetail.empty')}</p>
                 ) : (
-                  selectedAssignments.map((task: any) => (
-                    <div key={task.id} className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/10">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h4 className={`font-bold text-sm ${task.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{task.title}</h4>
-                          <p className="text-xs text-on-surface-variant mt-0.5">{task.className || t('common.general')} • {formatDueDate(task.dueDateTime, t)}</p>
-                          <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
+                  selectedDayItems.map((item: any) => {
+                    const isEvent = !!item.startDateTime;
+                    return (
+                      <div key={item.id} className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-bold text-sm ${item.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{item.title || item.subject}</h4>
+                            <p className="text-xs text-on-surface-variant mt-0.5">
+                              {isEvent
+                                ? `${item.className || t('common.general')} • ${new Date(item.startDateTime).toLocaleTimeString(language === 'zh' ? 'zh-CN' : undefined, { hour: '2-digit', minute: '2-digit' })}`
+                                : `${item.className || t('common.general')} • ${formatDueDate(item.dueDateTime, t)}`}
+                            </p>
+                            {!isEvent && <AttachmentLinks attachments={item.attachments} userId={localUserId} className={item.className} />}
+                          </div>
+                          {!isEvent && (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
+                              item.priority === 'urgent' ? 'bg-red-100 text-red-600' :
+                              item.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                              'bg-surface-container text-on-surface-variant'
+                            }`}>
+                              {item.priority}
+                            </span>
+                          )}
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
-                          task.priority === 'urgent' ? 'bg-red-100 text-red-600' :
-                          task.priority === 'high' ? 'bg-orange-100 text-orange-600' :
-                          'bg-surface-container text-on-surface-variant'
-                        }`}>
-                          {task.priority}
-                        </span>
+                        {item.description && (
+                          <p className="text-xs text-on-surface-variant mt-3 line-clamp-4">{item.description}</p>
+                        )}
                       </div>
-                      {task.description && (
-                        <p className="text-xs text-on-surface-variant mt-3 line-clamp-4">{task.description}</p>
-                      )}
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      {/* School Events / Activities */}
+      {classes.length > 0 && (
+        <section className="space-y-4">
+          <h3 className="text-xl font-black text-on-surface">{t('calendar.schoolEvents.title')}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {classes.slice(0, 4).map((cls: any) => (
+              <div key={cls.id} className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm flex items-center gap-4">
+                <div className={`w-12 h-12 bg-surface-container-low rounded-xl flex items-center justify-center ${cls.color} font-bold shadow-sm`}>
+                  {cls.code}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm text-on-surface">{cls.name}</h4>
+                  <p className="text-xs text-on-surface-variant">{cls.channel} • {cls.syncsToday} {t('profile.monitoredClasses.updates')}</p>
+                </div>
+                <ChevronRight size={18} className="text-outline" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Long-term Deadlines */}
       <section className="space-y-4">
@@ -820,7 +819,6 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
   const modes: { id: typeof mode; icon: typeof School; color: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
     { id: 'child', icon: School, color: 'bg-primary text-on-primary', titleKey: 'profile.mode.student.title', descKey: 'profile.mode.student.description' },
     { id: 'parent', icon: Users, color: 'bg-tertiary text-on-tertiary', titleKey: 'profile.mode.parent.title', descKey: 'profile.mode.parent.description' },
-    { id: 'personal', icon: Briefcase, color: 'bg-secondary text-on-secondary', titleKey: 'profile.mode.personal.title', descKey: 'profile.mode.personal.description' },
   ];
 
   return (
@@ -838,7 +836,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
       {/* Account Switcher */}
       <section className="space-y-4">
         <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.switchAccount.title')}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {modes.map((m) => (
             <button
               key={m.id}
@@ -864,30 +862,6 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
         </div>
       </section>
 
-      {/* Language Selector */}
-      <section className="space-y-4">
-        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.language.title')}</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {([
-            { id: 'en' as const, label: t('profile.language.english') },
-            { id: 'zh' as const, label: t('profile.language.chinese') },
-          ]).map((lang) => (
-            <button
-              key={lang.id}
-              onClick={() => setLanguage(lang.id)}
-              className={`flex items-center gap-3 rounded-3xl p-5 text-left border-2 transition-all hover:scale-[1.02] active:scale-95 ${
-                language === lang.id
-                  ? 'border-primary bg-surface-container-low shadow-lg'
-                  : 'border-transparent bg-white shadow-sm hover:shadow-md'
-              }`}
-            >
-              <Globe size={20} className={language === lang.id ? 'text-primary' : 'text-on-surface-variant'} />
-              <span className="font-bold text-on-surface">{lang.label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* User Info */}
       <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center gap-6">
@@ -899,13 +873,6 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
             <p className="text-on-surface-variant">{user.email}</p>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-surface-container-low text-xs font-bold text-on-surface-variant">{t('mode.' + mode)}</span>
           </div>
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors active:scale-95"
-          >
-            <LogOut size={18} />
-            {t('profile.signOut')}
-          </button>
         </div>
       </div>
 
@@ -953,6 +920,41 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
           </div>
         </div>
       )}
+
+      {/* Language Selector */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.language.title')}</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {([
+            { id: 'en' as const, label: t('profile.language.english') },
+            { id: 'zh' as const, label: t('profile.language.chinese') },
+          ]).map((lang) => (
+            <button
+              key={lang.id}
+              onClick={() => setLanguage(lang.id)}
+              className={`flex items-center gap-3 rounded-3xl p-5 text-left border-2 transition-all hover:scale-[1.02] active:scale-95 ${
+                language === lang.id
+                  ? 'border-primary bg-surface-container-low shadow-lg'
+                  : 'border-transparent bg-white shadow-sm hover:shadow-md'
+              }`}
+            >
+              <Globe size={20} className={language === lang.id ? 'text-primary' : 'text-on-surface-variant'} />
+              <span className="font-bold text-on-surface">{lang.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Sign Out */}
+      <section className="space-y-4">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors active:scale-95"
+        >
+          <LogOut size={18} />
+          {t('profile.signOut')}
+        </button>
+      </section>
     </motion.div>
   );
 };
@@ -1002,7 +1004,7 @@ export default function App() {
       case 'tasks':
         return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} localUserId={localUserId} />;
       case 'calendar':
-        return <CalendarView events={events} assignments={assignments} localUserId={localUserId} />;
+        return <CalendarView events={events} assignments={assignments} classes={classes} localUserId={localUserId} />;
       case 'profile':
         return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} source={source} />;
       default:

@@ -347,26 +347,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </div>
       </section>
 
-      {/* Progress Bar */}
-      {total > 0 && (
-        <div className="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-bold text-on-surface text-sm">{t('tasks.assignmentProgress')}</span>
-            <span className="text-xl font-black text-primary">{percent}%</span>
-          </div>
-          <div className="h-2.5 w-full bg-surface-container-low rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${percent}%` }}
-              transition={{ duration: 1, ease: 'easeOut' }}
-              className="h-full bg-primary rounded-full"
-            />
-          </div>
-          <p className="text-xs text-on-surface-variant mt-2">{t('tasks.completedCount', { completed, total })}</p>
-        </div>
-      )}
-
-      {/* My To-Do List -->
+      {/* My To-Do List */}
       <section className="space-y-4">
         <h3 className="text-xl font-black text-on-surface">{t('tasks.todoList.title')}</h3>
         <form
@@ -418,6 +399,25 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
           ))}
         </div>
       </section>
+
+      {/* Progress Bar */}
+      {total > 0 && (
+        <div className="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-bold text-on-surface text-sm">{t('tasks.assignmentProgress')}</span>
+            <span className="text-xl font-black text-primary">{percent}%</span>
+          </div>
+          <div className="h-2.5 w-full bg-surface-container-low rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${percent}%` }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+              className="h-full bg-primary rounded-full"
+            />
+          </div>
+          <p className="text-xs text-on-surface-variant mt-2">{t('tasks.completedCount', { completed, total })}</p>
+        </div>
+      )}
 
       {/* Recent Items & Deadlines */}
       <section className="space-y-4">

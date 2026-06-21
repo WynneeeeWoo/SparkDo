@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#8b5cf6"/>
+      <stop offset="0%" stop-color="#993c50"/>
+      <stop offset="100%" stop-color="#9b3667"/>
     </linearGradient>
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="8" result="blur"/>
@@ -10,7 +10,7 @@
     </filter>
   </defs>
   <rect width="512" height="512" rx="128" fill="url(#bg)"/>
-  <g fill="#ffffff" filter="url(#glow)">
+  <g fill="#ffeff0" filter="url(#glow)">
     <!-- Main 4-point sparkle -->
     <path d="M256 128 C264 216 216 264 128 256 C216 248 264 296 256 384 C248 296 296 248 384 256 C296 264 248 216 256 128 Z"/>
     <!-- Small sparkle top-right -->

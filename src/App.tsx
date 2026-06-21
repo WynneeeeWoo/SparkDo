@@ -424,7 +424,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               </span>
               <button
                 onClick={() => deleteTodo(todo.id)}
-                className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-on-surface-variant hover:bg-red-50 hover:text-red-500 transition-all"
+                className="p-2 rounded-xl text-on-surface-variant hover:bg-red-50 hover:text-red-500 transition-all"
                 aria-label="Delete task"
               >
                 <Trash2 size={16} />

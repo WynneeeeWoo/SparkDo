@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <g fill="#ffffff" filter="url(#glow)">
+    <!-- Main 4-point sparkle -->
+    <path d="M256 128 C264 216 216 264 128 256 C216 248 264 296 256 384 C248 296 296 248 384 256 C296 264 248 216 256 128 Z"/>
+    <!-- Small sparkle top-right -->
+    <path d="M380 64 C383 96 360 120 328 116 C360 113 383 136 380 168 C377 136 400 113 432 116 C400 120 377 96 380 64 Z"/>
+    <!-- Small sparkle bottom-left -->
+    <path d="M132 320 C135 344 116 364 92 360 C116 357 135 376 132 400 C129 376 148 357 172 360 C148 364 129 344 132 320 Z"/>
+  </g>
+</svg>

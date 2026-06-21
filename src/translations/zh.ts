@@ -92,6 +92,7 @@ export const zh: Record<TranslationKey, string> = {
   'tasks.recentItems.emptyAction.sync': '点击同步以加载你的数据。',
   'tasks.recentItems.emptyAction.manual': '手动添加任务或切换到学生模式。',
   'tasks.channelPosts.title': '最近频道动态',
+  'tasks.schoolUpdates.title': '学校更新',
   'tasks.ai.todayHomework': '今日作业',
   'tasks.ai.crossSubject': '跨学科总结',
   'tasks.ai.recentActivities': '最近活动',

@@ -31,7 +31,7 @@ import FocusTimer from './components/FocusTimer';
 import AuthForms from './components/AuthForms';
 import { View, User as UserType } from './types';
 import type { TranslationKey } from './translations';
-import { DEADLINES, CLASSES } from './constants';
+import { CLASSES } from './constants';
 
 // --- Shared Components ---
 
@@ -270,7 +270,6 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
     });
   };
 
-  const urgent = assignments.filter((a: any) => !a.completed && (a.priority === 'urgent' || (a.dueDateTime && new Date(a.dueDateTime) < new Date())));
   const recent = [...assignments].sort((a, b) => {
     const da = a.assignedDateTime ? new Date(a.assignedDateTime).getTime() : 0;
     const db = b.assignedDateTime ? new Date(b.assignedDateTime).getTime() : 0;
@@ -281,6 +280,15 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
     .filter((a: any) => !a.completed && a.dueDateTime)
     .sort((a, b) => new Date(a.dueDateTime).getTime() - new Date(b.dueDateTime).getTime())
     .slice(0, 5);
+
+  // Combined recent items + upcoming deadlines, deduplicated and sorted by due date
+  const combinedItems = Array.from(
+    new Map([...recent, ...upcoming].map((item) => [item.id, item])).values()
+  ).sort((a, b) => {
+    const da = a.dueDateTime ? new Date(a.dueDateTime).getTime() : 0;
+    const db = b.dueDateTime ? new Date(b.dueDateTime).getTime() : 0;
+    return db - da;
+  });
 
   const total = assignments.length;
   const completed = assignments.filter((a: any) => a.completed).length;
@@ -323,7 +331,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               className="bg-surface-container-low text-on-surface px-6 py-3 rounded-full font-bold flex items-center gap-2 border border-outline-variant/20 hover:bg-surface-container-high transition-all active:scale-95 text-sm"
             >
               <Timer size={16} />
-              Focus
+              {t('tasks.focus')}
             </button>
             {canSync && (
               <button
@@ -358,30 +366,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </div>
       )}
 
-      {/* Urgent Items */}
-      {urgent.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Flame size={20} className="text-red-500" />
-            <h3 className="text-xl font-black text-on-surface">{t('tasks.urgent.title')}</h3>
-          </div>
-          <div className="space-y-3">
-            {urgent.map((task: any) => (
-              <div key={task.id} className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-4">
-                <div className="w-2 h-2 rounded-full bg-red-500 mt-2 shrink-0" />
-                <div className="flex-1">
-                  <h4 className="font-bold text-on-surface text-sm">{task.title}</h4>
-                  <p className="text-xs text-red-600 mt-0.5">{formatDueDate(task.dueDateTime, t)} • {task.className || t('common.general')}</p>
-                  <AttachmentLinks attachments={task.attachments} userId={localUserId} className={task.className} />
-                </div>
-                <span className="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest shrink-0">{task.priority}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* My To-Do List */}
+      {/* My To-Do List -->
       <section className="space-y-4">
         <h3 className="text-xl font-black text-on-surface">{t('tasks.todoList.title')}</h3>
         <form
@@ -434,14 +419,14 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </div>
       </section>
 
-      {/* Recent Items */}
+      {/* Recent Items & Deadlines */}
       <section className="space-y-4">
         <h3 className="text-xl font-black text-on-surface">{t('tasks.recentItems.title')}</h3>
         <div className="space-y-3">
-          {recent.length === 0 ? (
+          {combinedItems.length === 0 ? (
             <p className="text-on-surface-variant text-sm">{t('tasks.recentItems.empty', { action: canSync ? t('tasks.recentItems.emptyAction.sync') : t('tasks.recentItems.emptyAction.manual') })}</p>
           ) : (
-            recent.map((task: any) => (
+            combinedItems.map((task: any) => (
               <button
                 key={task.id}
                 onClick={() => onToggleAssignment(task.id)}
@@ -472,29 +457,47 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </div>
       </section>
 
-      {/* Recent Channel Posts */}
-      {posts.length > 0 && (
+      {/* School Updates: Channel Posts + Activities */}
+      {(posts.length > 0 || canSync) && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <MessageSquare size={20} className="text-primary" />
-            <h3 className="text-xl font-black text-on-surface">{t('tasks.channelPosts.title')}</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.schoolUpdates.title')}</h3>
           </div>
-          <div className="space-y-3">
-            {posts
-              .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
-              .slice(0, 5)
-              .map((post: any) => (
-                <div key={post.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
-                      <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt, t)}</p>
-                      <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
+          {posts.length > 0 && (
+            <div className="space-y-3">
+              {posts
+                .sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime())
+                .slice(0, 5)
+                .map((post: any) => (
+                  <div key={post.id} className="bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
+                        <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt, t)}</p>
+                        <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
+                      </div>
                     </div>
                   </div>
+                ))}
+            </div>
+          )}
+          {canSync && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {CLASSES.slice(0, 4).map((cls) => (
+                <div key={cls.id} className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm flex items-center gap-4">
+                  <div className={`w-12 h-12 bg-surface-container-low rounded-xl flex items-center justify-center ${cls.color} font-bold shadow-sm`}>
+                    {cls.code}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm text-on-surface">{cls.name}</h4>
+                    <p className="text-xs text-on-surface-variant">{cls.channel} • {cls.syncsToday} updates today</p>
+                  </div>
+                  <ChevronRight size={18} className="text-outline" />
                 </div>
               ))}
-          </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -585,56 +588,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         </section>
       )}
 
-      {/* Recent Deadlines */}
-      <section className="space-y-4">
-        <h3 className="text-xl font-black text-on-surface">{t('tasks.upcomingDeadlines.title')}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(upcoming.length > 0 ? upcoming : DEADLINES).slice(0, 6).map((item: any) => {
-            const due = item.dueDateTime ? new Date(item.dueDateTime) : null;
-            const month = due ? due.toLocaleDateString(undefined, { month: 'short' }) : item.month;
-            const date = due ? due.getDate() : item.date;
-            return (
-              <div key={item.id} className="bg-surface-container-low rounded-2xl p-5 border border-outline-variant/10">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-white rounded-xl flex flex-col items-center justify-center shadow-sm">
-                    <span className="text-[10px] font-black text-on-surface-variant uppercase">{month}</span>
-                    <span className="text-lg font-black text-on-surface -mt-1">{date}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-on-surface truncate">{item.title || item.subject}</p>
-                    <p className="text-xs text-on-surface-variant">{item.course || item.className || 'School'}</p>
-                    <AttachmentLinks attachments={item.attachments} userId={localUserId} className={item.className} />
-                  </div>
-                </div>
-                <div className="h-1.5 w-full bg-surface-container rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${item.completed ? 'bg-green-500 w-full' : 'bg-tertiary w-[60%]'}`} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* School Activities */}
-      {canSync && (
-        <section className="space-y-4">
-          <h3 className="text-xl font-black text-on-surface">{t('tasks.schoolActivities.title')}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {CLASSES.slice(0, 4).map((cls) => (
-              <div key={cls.id} className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm flex items-center gap-4">
-                <div className={`w-12 h-12 bg-surface-container-low rounded-xl flex items-center justify-center ${cls.color} font-bold shadow-sm`}>
-                  {cls.code}
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm text-on-surface">{cls.name}</h4>
-                  <p className="text-xs text-on-surface-variant">{cls.channel} • {cls.syncsToday} updates today</p>
-                </div>
-                <ChevronRight size={18} className="text-outline" />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </motion.div>
   );
 };

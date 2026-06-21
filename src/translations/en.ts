@@ -91,6 +91,7 @@ export const en = {
   'tasks.recentItems.emptyAction.sync': 'Press Sync to load your data.',
   'tasks.recentItems.emptyAction.manual': 'Add tasks manually or switch to Student mode.',
   'tasks.channelPosts.title': 'Recent Channel Posts',
+  'tasks.schoolUpdates.title': 'School Updates',
   'tasks.ai.todayHomework': "Today's Homework",
   'tasks.ai.crossSubject': 'Cross-Subject Summary',
   'tasks.ai.recentActivities': 'Recent Activities',

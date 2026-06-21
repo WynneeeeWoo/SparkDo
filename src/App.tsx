@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   RefreshCw,
-  Users,
   AlertCircle,
   Calendar as CalendarIcon,
   User,
@@ -12,7 +11,6 @@ import {
   Sparkles,
   TrendingUp,
   Flame,
-  School,
   Home,
   MessageSquare,
   X,
@@ -343,16 +341,6 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               <Timer size={16} />
               {t('tasks.focus')}
             </button>
-            {!isReadOnly && canSync && (
-              <button
-                onClick={onAnalyze}
-                disabled={isAnalyzing}
-                className="bg-gradient-to-br from-secondary to-secondary-container text-on-secondary px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-secondary/20 transition-all active:scale-95 disabled:opacity-70 text-sm"
-              >
-                <Sparkles size={16} className={isAnalyzing ? 'animate-pulse' : ''} />
-                {isAnalyzing ? t('tasks.analyzing') : t('tasks.analyze')}
-              </button>
-            )}
           </div>
         </div>
       </section>
@@ -827,16 +815,11 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
   lastSyncedAt: string | null;
   source: 'teams' | 'local' | 'none';
 }) => {
-  const { mode, setMode, label, canSync } = useAccountMode();
+  const { mode, canSync } = useAccountMode();
   const { language, setLanguage, t } = useLanguage();
   const { assignments, posts, events } = useSync();
   const [shareOpen, setShareOpen] = useState(false);
   const isLocalSource = source === 'local';
-
-  const modes: { id: typeof mode; icon: typeof School; color: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
-    { id: 'child', icon: School, color: 'bg-primary text-on-primary', titleKey: 'profile.mode.student.title', descKey: 'profile.mode.student.description' },
-    { id: 'parent', icon: Users, color: 'bg-tertiary text-on-tertiary', titleKey: 'profile.mode.parent.title', descKey: 'profile.mode.parent.description' },
-  ];
 
   return (
     <motion.div
@@ -851,55 +834,28 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
       </div>
 
       {/* Share */}
-      <section className="space-y-4">
-        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('common.share')}</h3>
-        <button
-          onClick={() => setShareOpen(true)}
-          className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-on-primary font-bold hover:shadow-lg transition-all active:scale-95"
-        >
-          <Link2 size={18} />
-          Share Homework
-        </button>
-        {shareOpen && (
-          <ShareModal
-            userId={user.id}
-            assignments={assignments}
-            posts={posts}
-            classes={classes}
-            events={events}
-            onClose={() => setShareOpen(false)}
-          />
-        )}
-      </section>
-
-      {/* Account Switcher */}
-      <section className="space-y-4">
-        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.switchAccount.title')}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {modes.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className={`relative rounded-3xl p-6 text-left border-2 transition-all hover:scale-[1.02] active:scale-95 ${
-                mode === m.id
-                  ? 'border-primary bg-surface-container-low shadow-lg'
-                  : 'border-transparent bg-white shadow-sm hover:shadow-md'
-              }`}
-            >
-              {mode === m.id && (
-                <div className="absolute top-4 right-4 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                  <Check size={14} className="text-on-primary" />
-                </div>
-              )}
-              <div className={`w-12 h-12 rounded-2xl ${m.color} flex items-center justify-center mb-4`}>
-                <m.icon size={24} />
-              </div>
-              <h4 className="font-bold text-on-surface text-lg">{t(m.titleKey)}</h4>
-              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{t(m.descKey)}</p>
-            </button>
-          ))}
-        </div>
-      </section>
+      {mode === 'child' && (
+        <section className="space-y-4">
+          <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('common.share')}</h3>
+          <button
+            onClick={() => setShareOpen(true)}
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-on-primary font-bold hover:shadow-lg transition-all active:scale-95"
+          >
+            <Link2 size={18} />
+            Share Homework
+          </button>
+          {shareOpen && (
+            <ShareModal
+              userId={user.id}
+              assignments={assignments}
+              posts={posts}
+              classes={classes}
+              events={events}
+              onClose={() => setShareOpen(false)}
+            />
+          )}
+        </section>
+      )}
 
       {/* User Info */}
       <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">

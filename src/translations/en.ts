@@ -5,6 +5,7 @@ export const en = {
   'common.cancel': 'Cancel',
   'common.close': 'Close',
   'common.open': 'Open',
+  'common.share': 'Share',
   'common.more': 'more',
   'common.assignment': 'assignment',
   'common.assignments': 'assignments',

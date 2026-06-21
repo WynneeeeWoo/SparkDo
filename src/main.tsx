@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from './contexts/SyncContext';
 import { AccountModeProvider } from './contexts/AccountModeContext';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { ShareProvider } from './contexts/ShareContext';
 import { MsalProvider } from '@azure/msal-react';
 import { getMsalInstance, hasMsalConfig } from './config/msalConfig';
 import App from './App.tsx';
@@ -13,13 +14,15 @@ const msalInstance = getMsalInstance();
 
 const AppWrapper = () => (
   <LanguageProvider>
-    <AuthProvider>
-      <AccountModeProvider>
-        <SyncProvider>
-          <App />
-        </SyncProvider>
-      </AccountModeProvider>
-    </AuthProvider>
+    <ShareProvider>
+      <AuthProvider>
+        <AccountModeProvider>
+          <SyncProvider>
+            <App />
+          </SyncProvider>
+        </AccountModeProvider>
+      </AuthProvider>
+    </ShareProvider>
   </LanguageProvider>
 );
 

@@ -6,6 +6,14 @@ import { extractFilesForUser } from './services/fileExtractor';
 import { analyzeFilesWithLLM } from './services/llmAnalyzer';
 import { writeSummary } from './services/summaryWriter';
 import { buildAISyncPayload } from './services/aiSyncBuilder';
+import {
+  createShare,
+  getShare,
+  validateShare,
+  updateSharePayload,
+  deleteShare,
+  type SharePayload,
+} from './services/shareStore';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +27,7 @@ app.use(express.json());
 // Allow the Vite dev server to reach the API directly if needed.
 app.use((_req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   next();
 });
@@ -351,6 +359,90 @@ app.get('/api/files/:userId/:subject/:filename', async (req: Request, res: Respo
     res.sendFile(filePath);
   } catch {
     res.status(404).json({ error: 'File not found' });
+  }
+});
+
+// ─── Share Routes ────────────────────────────────────────────────────────────
+
+app.post('/api/share', async (req: Request, res: Response) => {
+  const { userId, pin, payload } = req.body;
+  if (!userId || !pin || !payload) {
+    return res.status(400).json({ error: 'Missing userId, pin, or payload.' });
+  }
+  if (!/^\d{4,6}$/.test(pin)) {
+    return res.status(400).json({ error: 'PIN must be 4-6 digits.' });
+  }
+  try {
+    const share = await createShare(userId, pin, payload);
+    res.json({ token: share.token, expiresAt: share.expiresAt });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to create share.' });
+  }
+});
+
+app.get('/api/share/:token', async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const { pin } = req.query;
+  if (!pin || typeof pin !== 'string') {
+    return res.status(400).json({ error: 'PIN is required.' });
+  }
+  try {
+    const share = await validateShare(token, pin);
+    if (!share) {
+      return res.status(401).json({ error: 'Invalid token or PIN, or share expired.' });
+    }
+
+    // Rebuild live assignments/classes/events/posts from the user's current data
+    const subjects = await readAllSubjects(share.userId);
+    const syncPayload = buildSyncPayload(subjects);
+
+    const payload: SharePayload = {
+      assignments: syncPayload.assignments,
+      classes: syncPayload.classes,
+      events: syncPayload.calendarEvents,
+      posts: syncPayload.posts,
+      todos: share.payload.todos || [],
+      assignmentOverrides: share.payload.assignmentOverrides || {},
+    };
+
+    res.json({ token: share.token, expiresAt: share.expiresAt, payload });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to read share.' });
+  }
+});
+
+app.put('/api/share/:token', async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const { pin, payload } = req.body;
+  if (!pin || !payload) {
+    return res.status(400).json({ error: 'Missing pin or payload.' });
+  }
+  try {
+    const ok = await updateSharePayload(token, pin, payload);
+    if (!ok) {
+      return res.status(401).json({ error: 'Invalid token or PIN, or share expired.' });
+    }
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to update share.' });
+  }
+});
+
+app.delete('/api/share/:token', async (req: Request, res: Response) => {
+  const { token } = req.params;
+  const { pin } = req.body;
+  if (!pin) {
+    return res.status(400).json({ error: 'Missing pin.' });
+  }
+  try {
+    const share = await validateShare(token, pin);
+    if (!share) {
+      return res.status(401).json({ error: 'Invalid token or PIN.' });
+    }
+    await deleteShare(token);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed to delete share.' });
   }
 });
 

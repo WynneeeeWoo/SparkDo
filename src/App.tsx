@@ -19,13 +19,17 @@ import {
   Globe,
   FileText,
   Plus,
-  Trash2
+  Trash2,
+  Link2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
 import { useSync } from './contexts/SyncContext';
 import { useAccountMode } from './contexts/AccountModeContext';
 import { useLanguage } from './contexts/LanguageContext';
+import { useShare } from './contexts/ShareContext';
+import ShareAuth from './components/ShareAuth';
+import ShareModal from './components/ShareModal';
 import FocusTimer from './components/FocusTimer';
 import AuthForms from './components/AuthForms';
 import { View, User as UserType } from './types';
@@ -223,7 +227,7 @@ function saveTodos(todos: TodoItem[]) {
   localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
 }
 
-const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer, onToggleAssignment, localUserId }: {
+const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer, onToggleAssignment, localUserId, externalTodos, readOnly: forceReadOnly }: {
   assignments: any[],
   posts: any[],
   aiSummary: any,
@@ -235,16 +239,21 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   onOpenFocusTimer: () => void,
   onToggleAssignment: (id: string) => void,
   localUserId: string | null,
+  externalTodos?: TodoItem[],
+  readOnly?: boolean,
 }) => {
-  const { mode, label, canSync, isReadOnly } = useAccountMode();
+  const { mode, label, canSync, isReadOnly: modeReadOnly } = useAccountMode();
   const { t } = useLanguage();
-  const [todos, setTodos] = useState<TodoItem[]>(getStoredTodos);
+  const isReadOnly = forceReadOnly || modeReadOnly;
+  const [localTodos, setLocalTodos] = useState<TodoItem[]>(getStoredTodos);
+  const todos = externalTodos ?? localTodos;
   const [newTodo, setNewTodo] = useState('');
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t('greeting.morning') : hour < 18 ? t('greeting.afternoon') : t('greeting.evening');
 
   const toggleTodo = (id: string) => {
-    setTodos((prev) => {
+    if (isReadOnly) return;
+    setLocalTodos((prev) => {
       const next = prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
       saveTodos(next);
       return next;
@@ -252,9 +261,10 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   };
 
   const addTodo = (text: string) => {
+    if (isReadOnly) return;
     const trimmed = text.trim();
     if (!trimmed) return;
-    setTodos((prev) => {
+    setLocalTodos((prev) => {
       const next = [...prev, { id: crypto.randomUUID(), text: trimmed, completed: false }];
       saveTodos(next);
       return next;
@@ -262,7 +272,8 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   };
 
   const deleteTodo = (id: string) => {
-    setTodos((prev) => {
+    if (isReadOnly) return;
+    setLocalTodos((prev) => {
       const next = prev.filter((t) => t.id !== id);
       saveTodos(next);
       return next;
@@ -315,7 +326,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
             </h2>
           </div>
           <div className="flex items-center gap-3">
-            {canSync && (
+            {!isReadOnly && canSync && (
               <button
                 onClick={onSync}
                 disabled={isSyncing}
@@ -332,7 +343,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               <Timer size={16} />
               {t('tasks.focus')}
             </button>
-            {canSync && (
+            {!isReadOnly && canSync && (
               <button
                 onClick={onAnalyze}
                 disabled={isAnalyzing}
@@ -349,51 +360,54 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
       {/* My To-Do List */}
       <section className="space-y-4">
         <h3 className="text-xl font-black text-on-surface">{t('tasks.todoList.title')}</h3>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            addTodo(newTodo);
-            setNewTodo('');
-          }}
-          className="flex items-center gap-2"
-        >
-          <input
-            type="text"
-            value={newTodo}
-            onChange={(e) => setNewTodo(e.target.value)}
-            placeholder={t('tasks.todoList.addPlaceholder')}
-            className="flex-1 px-4 py-3 rounded-2xl bg-white border border-outline-variant/10 shadow-sm text-sm font-bold text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-          />
-          <button
-            type="submit"
-            disabled={!newTodo.trim()}
-            className="px-4 py-3 rounded-2xl bg-primary text-on-primary font-bold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        {!isReadOnly && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              addTodo(newTodo);
+              setNewTodo('');
+            }}
+            className="flex items-center gap-2"
           >
-            <Plus size={20} />
-          </button>
-        </form>
+            <input
+              type="text"
+              value={newTodo}
+              onChange={(e) => setNewTodo(e.target.value)}
+              placeholder={t('tasks.todoList.addPlaceholder')}
+              className="flex-1 px-4 py-3 rounded-2xl bg-white border border-outline-variant/10 shadow-sm text-sm font-bold text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all"
+            />
+            <button
+              type="submit"
+              disabled={!newTodo.trim()}
+              className="px-4 py-3 rounded-2xl bg-primary text-on-primary font-bold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus size={20} />
+            </button>
+          </form>
+        )}
         <div className="space-y-2">
           {todos.map((todo) => (
             <div
               key={todo.id}
               className="group flex items-center gap-3 p-4 rounded-2xl bg-white border border-outline-variant/10 shadow-sm hover:shadow-md transition-all"
             >
-              <button
-                onClick={() => toggleTodo(todo.id)}
-                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30 hover:border-primary'}`}
+              <div
+                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}
               >
                 {todo.completed && <Check size={14} strokeWidth={3} />}
-              </button>
+              </div>
               <span className={`flex-1 text-left font-bold text-sm ${todo.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
                 {todo.text}
               </span>
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="p-2 rounded-xl text-on-surface-variant hover:bg-red-50 hover:text-red-500 transition-all"
-                aria-label="Delete task"
-              >
-                <Trash2 size={16} />
-              </button>
+              {!isReadOnly && (
+                <button
+                  onClick={() => deleteTodo(todo.id)}
+                  className="p-2 rounded-xl text-on-surface-variant hover:bg-red-50 hover:text-red-500 transition-all"
+                  aria-label="Delete task"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -428,8 +442,9 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
             combinedItems.map((task: any) => (
               <button
                 key={task.id}
-                onClick={() => onToggleAssignment(task.id)}
-                className="w-full group bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all text-left"
+                onClick={() => !isReadOnly && onToggleAssignment(task.id)}
+                disabled={isReadOnly}
+                className="w-full group bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all text-left disabled:opacity-80 disabled:hover:shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -814,6 +829,8 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
 }) => {
   const { mode, setMode, label, canSync } = useAccountMode();
   const { language, setLanguage, t } = useLanguage();
+  const { assignments, posts, events } = useSync();
+  const [shareOpen, setShareOpen] = useState(false);
   const isLocalSource = source === 'local';
 
   const modes: { id: typeof mode; icon: typeof School; color: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
@@ -832,6 +849,28 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
         <h2 className="text-4xl md:text-5xl font-black text-on-background tracking-tighter">{t('profile.title')}</h2>
         <p className="text-on-surface-variant mt-2 font-medium">{t('profile.subtitle')}</p>
       </div>
+
+      {/* Share */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('common.share')}</h3>
+        <button
+          onClick={() => setShareOpen(true)}
+          className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-primary text-on-primary font-bold hover:shadow-lg transition-all active:scale-95"
+        >
+          <Link2 size={18} />
+          Share Homework
+        </button>
+        {shareOpen && (
+          <ShareModal
+            userId={user.id}
+            assignments={assignments}
+            posts={posts}
+            classes={classes}
+            events={events}
+            onClose={() => setShareOpen(false)}
+          />
+        )}
+      </section>
 
       {/* Account Switcher */}
       <section className="space-y-4">
@@ -965,14 +1004,54 @@ export default function App() {
   const { t } = useLanguage();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source, toggleAssignment, localUserId } = useSync();
+  const { sharedView, isSharedView, activeShare, sync: syncShare } = useShare();
   const [view, setView] = useState<View>('tasks');
   const [focusTimerOpen, setFocusTimerOpen] = useState(false);
+  const [shareToken] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('share');
+  });
 
   useEffect(() => {
     const handler = () => setFocusTimerOpen(true);
     window.addEventListener('open-focus-timer', handler);
     return () => window.removeEventListener('open-focus-timer', handler);
   }, []);
+
+  // Sync todos and assignment overrides to the active share whenever they change
+  useEffect(() => {
+    if (!activeShare || isSharedView) return;
+    const storedTodos = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(TODO_STORAGE_KEY) || '[]');
+      } catch {
+        return [];
+      }
+    })();
+    const overrides = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('sparkdo_assignment_overrides') || '{}');
+      } catch {
+        return {};
+      }
+    })();
+    const payload = {
+      assignments: assignments.map((a) => ({ ...a, completed: overrides[a.id] ?? a.completed })),
+      todos: storedTodos,
+      assignmentOverrides: overrides,
+      posts,
+      classes,
+      events,
+    };
+    const timeout = setTimeout(() => {
+      syncShare(payload).catch(() => {});
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [activeShare, assignments, posts, classes, events, isSharedView, syncShare]);
+
+  if (shareToken && !isSharedView) {
+    return <ShareAuth token={shareToken} />;
+  }
 
   if (isLoading) {
     return (
@@ -1011,6 +1090,42 @@ export default function App() {
         return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} localUserId={localUserId} />;
     }
   };
+
+  if (isSharedView && sharedView) {
+    const payload = sharedView.payload;
+    return (
+      <div className="min-h-screen bg-surface selection:bg-primary/20">
+        <header className="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md flex justify-between items-center px-6 py-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-black text-on-surface tracking-tight font-headline">SparkDo</h1>
+            <span className="text-xs font-bold uppercase tracking-widest text-on-surface/60">Shared View</span>
+          </div>
+        </header>
+
+        <main className="px-6 py-8 max-w-7xl mx-auto">
+          <AnimatePresence mode="wait">
+            <TasksView
+              assignments={payload.assignments}
+              posts={payload.posts}
+              aiSummary={null}
+              isSyncing={false}
+              isAnalyzing={false}
+              lastSyncedAt={null}
+              onSync={() => {}}
+              onAnalyze={() => {}}
+              onOpenFocusTimer={() => setFocusTimerOpen(true)}
+              onToggleAssignment={() => {}}
+              localUserId={null}
+              externalTodos={payload.todos}
+              readOnly
+            />
+          </AnimatePresence>
+        </main>
+
+        <FocusTimer isOpen={focusTimerOpen} onClose={() => setFocusTimerOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-surface selection:bg-primary/20">

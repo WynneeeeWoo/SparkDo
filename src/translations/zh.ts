@@ -7,6 +7,7 @@ export const zh: Record<TranslationKey, string> = {
   'common.cancel': '取消',
   'common.close': '关闭',
   'common.open': '打开',
+  'common.share': '分享',
   'common.more': '更多',
   'common.assignment': '作业',
   'common.assignments': '作业',

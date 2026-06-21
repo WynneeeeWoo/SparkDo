@@ -392,20 +392,10 @@ app.get('/api/share/:token', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid token or PIN, or share expired.' });
     }
 
-    // Rebuild live assignments/classes/events/posts from the user's current data
-    const subjects = await readAllSubjects(share.userId);
-    const syncPayload = buildSyncPayload(subjects);
-
-    const payload: SharePayload = {
-      assignments: syncPayload.assignments,
-      classes: syncPayload.classes,
-      events: syncPayload.calendarEvents,
-      posts: syncPayload.posts,
-      todos: share.payload.todos || [],
-      assignmentOverrides: share.payload.assignmentOverrides || {},
-    };
-
-    res.json({ token: share.token, expiresAt: share.expiresAt, payload });
+    // Return the stored snapshot so the parent sees exactly what the student
+    // shared (assignments, progress, todos, posts, classes, events), regardless
+    // of whether the student uses local files or MS Graph as their data source.
+    res.json({ token: share.token, expiresAt: share.expiresAt, payload: share.payload });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || 'Failed to read share.' });
   }

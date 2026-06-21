@@ -15,21 +15,26 @@ import {
   School,
   Briefcase,
   Home,
-  MessageSquare
+  MessageSquare,
+  X,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from './contexts/AuthContext';
 import { useSync } from './contexts/SyncContext';
 import { useAccountMode } from './contexts/AccountModeContext';
+import { useLanguage } from './contexts/LanguageContext';
 import FocusTimer from './components/FocusTimer';
 import AuthForms from './components/AuthForms';
 import { View, User as UserType } from './types';
+import type { TranslationKey } from './translations';
 import { DEADLINES, CLASSES } from './constants';
 
 // --- Shared Components ---
 
-const Header = ({ currentView, user, onLogout }: { currentView: string, user: UserType, onLogout: () => void }) => {
+const Header = ({ currentView, user, onLogout }: { currentView: View, user: UserType, onLogout: () => void }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <header className="w-full top-0 sticky z-50 bg-surface/80 backdrop-blur-md flex justify-between items-center px-6 py-4">
@@ -38,7 +43,7 @@ const Header = ({ currentView, user, onLogout }: { currentView: string, user: Us
       </div>
       <div className="flex items-center gap-4">
         <div className="hidden md:flex gap-6 items-center mr-6">
-          <span className="text-xs font-bold uppercase tracking-widest text-on-surface/60">{currentView}</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-on-surface/60">{t('nav.' + currentView)}</span>
         </div>
         <div className="relative">
           <button
@@ -75,7 +80,7 @@ const Header = ({ currentView, user, onLogout }: { currentView: string, user: Us
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <LogOut size={16} />
-                    Sign Out
+                    {t('header.userMenu.signOut')}
                   </button>
                 </motion.div>
               </>
@@ -87,12 +92,14 @@ const Header = ({ currentView, user, onLogout }: { currentView: string, user: Us
   );
 };
 
-const BottomNav = ({ activeView, setView }: { activeView: View, setView: (v: View) => void }) => (
+const BottomNav = ({ activeView, setView }: { activeView: View, setView: (v: View) => void }) => {
+  const { t } = useLanguage();
+  return (
   <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-3 bg-white/80 backdrop-blur-2xl rounded-t-3xl border-t border-outline-variant/20 shadow-lg">
     {[
-      { id: 'tasks' as View, icon: Home, label: 'Home' },
-      { id: 'calendar' as View, icon: CalendarIcon, label: 'Calendar' },
-      { id: 'profile' as View, icon: User, label: 'Profile' }
+      { id: 'tasks' as View, icon: Home, labelKey: 'nav.home' as const },
+      { id: 'calendar' as View, icon: CalendarIcon, labelKey: 'nav.calendar' as const },
+      { id: 'profile' as View, icon: User, labelKey: 'nav.profile' as const }
     ].map((item) => (
       <button
         key={item.id}
@@ -104,45 +111,46 @@ const BottomNav = ({ activeView, setView }: { activeView: View, setView: (v: Vie
         }`}
       >
         <item.icon size={20} fill={activeView === item.id ? 'currentColor' : 'none'} />
-        <span className="text-[10px] font-bold uppercase tracking-widest mt-1">{item.label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest mt-1">{t(item.labelKey)}</span>
       </button>
     ))}
   </nav>
-);
+  );
+};
 
 // --- Helpers ---
 
-function formatDueDate(iso: string): string {
-  if (!iso) return 'No due date';
+function formatDueDate(iso: string, t: (key: any, vars?: any) => string): string {
+  if (!iso) return t('common.noDueDate');
   const d = new Date(iso);
   const now = new Date();
   const diffMs = d.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-  if (diffDays === 0) return 'Due today';
-  if (diffDays === 1) return 'Due tomorrow';
+  if (diffDays < 0) return t('dueDate.overdue', { days: Math.abs(diffDays) });
+  if (diffDays === 0) return t('dueDate.today');
+  if (diffDays === 1) return t('dueDate.tomorrow');
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function formatSyncTime(iso: string | null, isSyncing: boolean): string {
-  if (isSyncing) return 'Syncing...';
+function formatSyncTime(iso: string | null, isSyncing: boolean, t: (key: any, vars?: any) => string): string {
+  if (isSyncing) return t('tasks.syncing') + '...';
   if (!iso) return 'Off-sync';
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
+  if (mins < 1) return t('tasks.justNow');
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function formatPostTime(iso: string): string {
+function formatPostTime(iso: string, t: (key: any, vars?: any) => string): string {
   if (!iso) return '';
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'Just now';
+  if (diffMins < 1) return t('tasks.justNow');
   if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
@@ -192,7 +200,7 @@ function saveTodos(todos: TodoItem[]) {
   localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todos));
 }
 
-const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer }: {
+const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, onSync, onAnalyze, onOpenFocusTimer, onToggleAssignment }: {
   assignments: any[],
   posts: any[],
   aiSummary: any,
@@ -202,11 +210,13 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
   onSync: () => void,
   onAnalyze: () => void,
   onOpenFocusTimer: () => void,
+  onToggleAssignment: (id: string) => void,
 }) => {
   const { mode, label, canSync, isReadOnly } = useAccountMode();
+  const { t } = useLanguage();
   const [todos, setTodos] = useState<TodoItem[]>(getStoredTodos);
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+  const greeting = hour < 12 ? t('greeting.morning') : hour < 18 ? t('greeting.afternoon') : t('greeting.evening');
 
   const toggleTodo = (id: string) => {
     setTodos((prev) => {
@@ -244,9 +254,9 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-bold uppercase tracking-[0.2em] text-secondary">{label} Mode</span>
+              <span className="text-sm font-bold uppercase tracking-[0.2em] text-secondary">{t('mode.' + mode)}</span>
               {isReadOnly && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider">Read Only</span>
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider">{t('mode.readOnly')}</span>
               )}
             </div>
             <h2 className="text-5xl md:text-6xl font-black text-on-background tracking-tighter leading-none">
@@ -261,7 +271,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                 className="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-primary/20 transition-all active:scale-95 disabled:opacity-70 text-sm"
               >
                 <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                {isSyncing ? 'Syncing' : formatSyncTime(lastSyncedAt, isSyncing)}
+                {isSyncing ? t('tasks.syncing') : formatSyncTime(lastSyncedAt, isSyncing, t)}
               </button>
             )}
             <button
@@ -278,7 +288,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                 className="bg-gradient-to-br from-secondary to-secondary-container text-on-secondary px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg hover:shadow-secondary/20 transition-all active:scale-95 disabled:opacity-70 text-sm"
               >
                 <Sparkles size={16} className={isAnalyzing ? 'animate-pulse' : ''} />
-                {isAnalyzing ? 'Analyzing' : 'Analyze'}
+                {isAnalyzing ? t('tasks.analyzing') : t('tasks.analyze')}
               </button>
             )}
           </div>
@@ -289,7 +299,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
       {total > 0 && (
         <div className="bg-white rounded-3xl p-6 border border-outline-variant/10 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="font-bold text-on-surface text-sm">Assignment Progress</span>
+            <span className="font-bold text-on-surface text-sm">{t('tasks.assignmentProgress')}</span>
             <span className="text-xl font-black text-primary">{percent}%</span>
           </div>
           <div className="h-2.5 w-full bg-surface-container-low rounded-full overflow-hidden">
@@ -300,7 +310,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               className="h-full bg-primary rounded-full"
             />
           </div>
-          <p className="text-xs text-on-surface-variant mt-2">{completed} of {total} completed</p>
+          <p className="text-xs text-on-surface-variant mt-2">{t('tasks.completedCount', { completed, total })}</p>
         </div>
       )}
 
@@ -309,7 +319,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Flame size={20} className="text-red-500" />
-            <h3 className="text-xl font-black text-on-surface">Urgent — Needs Attention</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.urgent.title')}</h3>
           </div>
           <div className="space-y-3">
             {urgent.map((task: any) => (
@@ -317,7 +327,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                 <div className="w-2 h-2 rounded-full bg-red-500 mt-2 shrink-0" />
                 <div className="flex-1">
                   <h4 className="font-bold text-on-surface text-sm">{task.title}</h4>
-                  <p className="text-xs text-red-600 mt-0.5">{formatDueDate(task.dueDateTime)} • {task.className || 'General'}</p>
+                  <p className="text-xs text-red-600 mt-0.5">{formatDueDate(task.dueDateTime, t)} • {task.className || t('common.general')}</p>
                 </div>
                 <span className="px-2 py-1 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest shrink-0">{task.priority}</span>
               </div>
@@ -328,7 +338,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 
       {/* My To-Do List */}
       <section className="space-y-4">
-        <h3 className="text-xl font-black text-on-surface">My To-Do List</h3>
+        <h3 className="text-xl font-black text-on-surface">{t('tasks.todoList.title')}</h3>
         <div className="space-y-2">
           {todos.map((todo) => (
             <button
@@ -349,21 +359,25 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 
       {/* Recent Items */}
       <section className="space-y-4">
-        <h3 className="text-xl font-black text-on-surface">Recent Items</h3>
+        <h3 className="text-xl font-black text-on-surface">{t('tasks.recentItems.title')}</h3>
         <div className="space-y-3">
           {recent.length === 0 ? (
-            <p className="text-on-surface-variant text-sm">No assignments yet. {canSync ? 'Press Sync to load your data.' : 'Add tasks manually or switch to Student mode.'}</p>
+            <p className="text-on-surface-variant text-sm">{t('tasks.recentItems.empty', { action: canSync ? t('tasks.recentItems.emptyAction.sync') : t('tasks.recentItems.emptyAction.manual') })}</p>
           ) : (
             recent.map((task: any) => (
-              <div key={task.id} className="group bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all">
+              <button
+                key={task.id}
+                onClick={() => onToggleAssignment(task.id)}
+                className="w-full group bg-white rounded-2xl p-4 shadow-sm border border-outline-variant/10 hover:shadow-md transition-all text-left"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mt-0.5 shrink-0 ${task.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}>
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center mt-0.5 shrink-0 transition-colors ${task.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}>
                       {task.completed && <Check size={12} strokeWidth={3} />}
                     </div>
                     <div>
                       <h4 className={`font-bold text-sm ${task.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{task.title}</h4>
-                      <p className="text-xs text-on-surface-variant mt-0.5">{task.className || 'General'} • {formatDueDate(task.dueDateTime)}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{task.className || t('common.general')} • {formatDueDate(task.dueDateTime, t)}</p>
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
@@ -374,7 +388,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                     {task.priority}
                   </span>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>
@@ -385,7 +399,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <MessageSquare size={20} className="text-primary" />
-            <h3 className="text-xl font-black text-on-surface">Recent Channel Posts</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.channelPosts.title')}</h3>
           </div>
           <div className="space-y-3">
             {posts
@@ -396,7 +410,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h4 className="font-bold text-sm text-on-surface">{post.subject}</h4>
-                      <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt)}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{post.className} • {formatPostTime(post.postedAt, t)}</p>
                       <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{post.content}</p>
                     </div>
                   </div>
@@ -411,7 +425,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <Sparkles size={20} className="text-secondary" />
-            <h3 className="text-xl font-black text-on-surface">Today's Homework</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.ai.todayHomework')}</h3>
           </div>
           <div className="grid grid-cols-1 gap-3">
             {aiSummary.today.map((item: any) => (
@@ -419,7 +433,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h4 className="font-bold text-sm text-on-surface">{item.title}</h4>
-                    <p className="text-xs text-on-surface-variant mt-0.5">{item.className} • {formatDueDate(item.dueDateTime)}</p>
+                    <p className="text-xs text-on-surface-variant mt-0.5">{item.className} • {formatDueDate(item.dueDateTime, t)}</p>
                     <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{item.content}</p>
                   </div>
                   <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-black uppercase tracking-widest shrink-0">Today</span>
@@ -435,25 +449,25 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <TrendingUp size={20} className="text-tertiary" />
-            <h3 className="text-xl font-black text-on-surface">Cross-Subject Summary</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.ai.crossSubject')}</h3>
           </div>
           <div className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="text-center">
                 <p className="text-2xl font-black text-primary">{aiSummary.crossSubject.totalAssignments}</p>
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Assignments</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">{t('tasks.ai.assignments')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-black text-green-500">{aiSummary.crossSubject.completed}</p>
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Done</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">{t('tasks.ai.done')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-black text-red-500">{aiSummary.crossSubject.overdue}</p>
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Overdue</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">{t('tasks.ai.overdue')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-black text-tertiary">{Object.keys(aiSummary.crossSubject.bySubject || {}).length}</p>
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Subjects</p>
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider">{t('tasks.ai.subjects')}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -472,7 +486,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <MessageSquare size={20} className="text-primary" />
-            <h3 className="text-xl font-black text-on-surface">Recent Activities</h3>
+            <h3 className="text-xl font-black text-on-surface">{t('tasks.ai.recentActivities')}</h3>
           </div>
           <div className="space-y-3">
             {aiSummary.recentActivities
@@ -483,7 +497,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h4 className="font-bold text-sm text-on-surface">{activity.subject}</h4>
-                      <p className="text-xs text-on-surface-variant mt-0.5">{activity.className} • {formatPostTime(activity.postedAt)}</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{activity.className} • {formatPostTime(activity.postedAt, t)}</p>
                       <p className="text-sm text-on-surface-variant mt-2 line-clamp-2">{activity.content}</p>
                     </div>
                   </div>
@@ -495,7 +509,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 
       {/* Recent Deadlines */}
       <section className="space-y-4">
-        <h3 className="text-xl font-black text-on-surface">Upcoming Deadlines</h3>
+        <h3 className="text-xl font-black text-on-surface">{t('tasks.upcomingDeadlines.title')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(upcoming.length > 0 ? upcoming : DEADLINES).slice(0, 6).map((item: any) => {
             const due = item.dueDateTime ? new Date(item.dueDateTime) : null;
@@ -525,7 +539,7 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
       {/* School Activities */}
       {canSync && (
         <section className="space-y-4">
-          <h3 className="text-xl font-black text-on-surface">School Activities</h3>
+          <h3 className="text-xl font-black text-on-surface">{t('tasks.schoolActivities.title')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {CLASSES.slice(0, 4).map((cls) => (
               <div key={cls.id} className="bg-white rounded-2xl p-5 border border-outline-variant/10 shadow-sm flex items-center gap-4">
@@ -549,8 +563,10 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
 // --- Calendar View ---
 
 const CalendarView = ({ events, assignments }: { events: any[], assignments: any[] }) => {
+  const { language, t } = useLanguage();
   const weekStart = getWeekStart();
   const weekEnd = getWeekEnd();
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const thisWeekTasks = assignments.filter((a: any) => {
     if (!a.dueDateTime || a.completed) return false;
@@ -565,6 +581,11 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
 
   const eventDays = new Set(events.map((e: any) => new Date(e.startDateTime).getDate()));
 
+  const getAssignmentsForDay = (day: number) =>
+    assignments.filter((a: any) => a.dueDateTime && new Date(a.dueDateTime).getDate() === day);
+
+  const selectedAssignments = selectedDay !== null ? getAssignmentsForDay(selectedDay) : [];
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -574,8 +595,8 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
     >
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-on-surface mb-2">Calendar</h1>
-          <p className="text-on-surface-variant font-medium">Plan ahead. Never miss a deadline.</p>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-on-surface mb-2">{t('calendar.title')}</h1>
+          <p className="text-on-surface-variant font-medium">{t('calendar.subtitle')}</p>
         </div>
       </div>
 
@@ -585,7 +606,7 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-4">
             <Timer size={24} />
-            <span className="text-[10px] uppercase tracking-[0.2em] font-bold">This Week</span>
+            <span className="text-[10px] uppercase tracking-[0.2em] font-bold">{t('calendar.thisWeek')}</span>
           </div>
           <h3 className="text-2xl font-black mb-2">
             {thisWeekTasks.length > 0 ? `${thisWeekTasks.length} due this week` : 'No deadlines this week'}
@@ -595,7 +616,7 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
               <div key={task.id} className="flex items-center gap-3 text-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-white" />
                 <span className="font-medium">{task.title}</span>
-                <span className="text-on-primary/70 text-xs">{formatDueDate(task.dueDateTime)}</span>
+                <span className="text-on-primary/70 text-xs">{formatDueDate(task.dueDateTime, t)}</span>
               </div>
             ))}
           </div>
@@ -614,35 +635,118 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
             const day = i - 4;
             const isToday = day === new Date().getDate();
             const hasEvent = eventDays.has(day);
-            const hasDeadline = assignments.some((a: any) => !a.completed && a.dueDateTime && new Date(a.dueDateTime).getDate() === day);
+            const dayAssignments = getAssignmentsForDay(day);
+            const hasDeadline = dayAssignments.length > 0;
 
             if (day < 1 || day > 30) return <div key={i} className="aspect-square" />;
 
             return (
-              <div
+              <button
                 key={i}
-                className={`aspect-square rounded-2xl p-2 relative transition-all ${
+                onClick={() => dayAssignments.length > 0 && setSelectedDay(day)}
+                disabled={dayAssignments.length === 0}
+                className={`aspect-square rounded-2xl p-2 relative text-left transition-all ${
                   isToday
                     ? 'bg-primary text-on-primary scale-105 z-10 shadow-lg shadow-primary/20'
-                    : 'bg-white hover:bg-surface-container-high'
+                    : 'bg-white hover:bg-surface-container-high disabled:opacity-60 disabled:hover:bg-white'
                 }`}
               >
                 <span className={`font-bold text-sm ${isToday ? 'text-white' : 'text-on-surface'}`}>{day}</span>
+                <div className="mt-1 space-y-0.5 overflow-hidden">
+                  {dayAssignments.slice(0, 2).map((task: any) => (
+                    <p
+                      key={task.id}
+                      className={`text-[9px] font-bold truncate leading-tight ${
+                        isToday ? 'text-on-primary/90' : task.completed ? 'text-on-surface-variant line-through' : 'text-on-surface'
+                      }`}
+                      title={task.title}
+                    >
+                      {task.title}
+                    </p>
+                  ))}
+                  {dayAssignments.length > 2 && (
+                    <p className={`text-[9px] font-bold ${isToday ? 'text-on-primary/70' : 'text-on-surface-variant'}`}>
+                      +{dayAssignments.length - 2} {t('common.more')}
+                    </p>
+                  )}
+                </div>
                 {(hasEvent || hasDeadline) && !isToday && (
                   <div className={`absolute bottom-2 left-2 right-2 h-1 rounded-full ${hasDeadline ? 'bg-red-400' : 'bg-primary-container'}`} />
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
       </section>
 
+      {/* Day Detail Modal */}
+      <AnimatePresence>
+        {selectedDay !== null && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDay(null)}
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.96 }}
+              className="fixed inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 top-[10%] md:top-[15%] md:w-full md:max-w-lg max-h-[80vh] bg-white rounded-3xl shadow-2xl z-50 flex flex-col"
+            >
+              <div className="flex items-center justify-between p-5 border-b border-outline-variant/10">
+                <div>
+                  <h3 className="text-xl font-black text-on-surface">{t('calendar.dayDetail.title', { day: selectedDay, month: new Date().toLocaleDateString(language === 'zh' ? 'zh-CN' : undefined, { month: 'long' }) })}</h3>
+                  <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mt-0.5">
+                    {t('calendar.dayDetail.count', { count: selectedAssignments.length, suffix: selectedAssignments.length !== 1 ? 's' : '' })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-5 space-y-3">
+                {selectedAssignments.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant">{t('calendar.dayDetail.empty')}</p>
+                ) : (
+                  selectedAssignments.map((task: any) => (
+                    <div key={task.id} className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/10">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`font-bold text-sm ${task.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>{task.title}</h4>
+                          <p className="text-xs text-on-surface-variant mt-0.5">{task.className || t('common.general')} • {formatDueDate(task.dueDateTime, t)}</p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 ${
+                          task.priority === 'urgent' ? 'bg-red-100 text-red-600' :
+                          task.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                          'bg-surface-container text-on-surface-variant'
+                        }`}>
+                          {task.priority}
+                        </span>
+                      </div>
+                      {task.description && (
+                        <p className="text-xs text-on-surface-variant mt-3 line-clamp-4">{task.description}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Long-term Deadlines */}
       <section className="space-y-4">
-        <h3 className="text-xl font-black text-on-surface">Long-term Deadlines</h3>
+        <h3 className="text-xl font-black text-on-surface">{t('calendar.longTerm.title')}</h3>
         <div className="space-y-3">
           {longTerm.length === 0 ? (
-            <p className="text-on-surface-variant text-sm">No upcoming long-term deadlines. You're all caught up!</p>
+            <p className="text-on-surface-variant text-sm">{t('calendar.longTerm.empty')}</p>
           ) : (
             longTerm.map((task: any) => (
               <div key={task.id} className="bg-white rounded-2xl p-4 border border-outline-variant/10 flex items-center gap-4">
@@ -651,9 +755,9 @@ const CalendarView = ({ events, assignments }: { events: any[], assignments: any
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-sm text-on-surface">{task.title}</p>
-                  <p className="text-xs text-on-surface-variant">{task.className || 'General'}</p>
+                  <p className="text-xs text-on-surface-variant">{task.className || t('common.general')}</p>
                 </div>
-                <span className="text-sm font-bold text-primary">{formatDueDate(task.dueDateTime)}</span>
+                <span className="text-sm font-bold text-primary">{formatDueDate(task.dueDateTime, t)}</span>
               </div>
             ))
           )}
@@ -675,12 +779,13 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
   source: 'teams' | 'local' | 'none';
 }) => {
   const { mode, setMode, label, canSync } = useAccountMode();
+  const { language, setLanguage, t } = useLanguage();
   const isLocalSource = source === 'local';
 
-  const modes: { id: typeof mode; icon: typeof School; color: string; title: string; desc: string }[] = [
-    { id: 'child', icon: School, color: 'bg-primary text-on-primary', title: 'Student', desc: 'Full access to assignments, Teams sync, and school activities' },
-    { id: 'parent', icon: Users, color: 'bg-tertiary text-on-tertiary', title: 'Parent', desc: 'Read-only overview of your child\'s tasks and deadlines' },
-    { id: 'personal', icon: Briefcase, color: 'bg-secondary text-on-secondary', title: 'Personal', desc: 'Private tasks and calendar without school integration' },
+  const modes: { id: typeof mode; icon: typeof School; color: string; titleKey: TranslationKey; descKey: TranslationKey }[] = [
+    { id: 'child', icon: School, color: 'bg-primary text-on-primary', titleKey: 'profile.mode.student.title', descKey: 'profile.mode.student.description' },
+    { id: 'parent', icon: Users, color: 'bg-tertiary text-on-tertiary', titleKey: 'profile.mode.parent.title', descKey: 'profile.mode.parent.description' },
+    { id: 'personal', icon: Briefcase, color: 'bg-secondary text-on-secondary', titleKey: 'profile.mode.personal.title', descKey: 'profile.mode.personal.description' },
   ];
 
   return (
@@ -691,13 +796,13 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
       className="max-w-6xl mx-auto space-y-10 pb-12"
     >
       <div>
-        <h2 className="text-4xl md:text-5xl font-black text-on-background tracking-tighter">Profile</h2>
-        <p className="text-on-surface-variant mt-2 font-medium">Manage your account and preferences</p>
+        <h2 className="text-4xl md:text-5xl font-black text-on-background tracking-tighter">{t('profile.title')}</h2>
+        <p className="text-on-surface-variant mt-2 font-medium">{t('profile.subtitle')}</p>
       </div>
 
       {/* Account Switcher */}
       <section className="space-y-4">
-        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">Switch Account</h3>
+        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.switchAccount.title')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {modes.map((m) => (
             <button
@@ -717,8 +822,32 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
               <div className={`w-12 h-12 rounded-2xl ${m.color} flex items-center justify-center mb-4`}>
                 <m.icon size={24} />
               </div>
-              <h4 className="font-bold text-on-surface text-lg">{m.title}</h4>
-              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{m.desc}</p>
+              <h4 className="font-bold text-on-surface text-lg">{t(m.titleKey)}</h4>
+              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{t(m.descKey)}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Language Selector */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.language.title')}</h3>
+        <div className="grid grid-cols-2 gap-4">
+          {([
+            { id: 'en' as const, label: t('profile.language.english') },
+            { id: 'zh' as const, label: t('profile.language.chinese') },
+          ]).map((lang) => (
+            <button
+              key={lang.id}
+              onClick={() => setLanguage(lang.id)}
+              className={`flex items-center gap-3 rounded-3xl p-5 text-left border-2 transition-all hover:scale-[1.02] active:scale-95 ${
+                language === lang.id
+                  ? 'border-primary bg-surface-container-low shadow-lg'
+                  : 'border-transparent bg-white shadow-sm hover:shadow-md'
+              }`}
+            >
+              <Globe size={20} className={language === lang.id ? 'text-primary' : 'text-on-surface-variant'} />
+              <span className="font-bold text-on-surface">{lang.label}</span>
             </button>
           ))}
         </div>
@@ -733,14 +862,14 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
           <div className="flex-1">
             <h3 className="text-2xl font-bold text-on-surface">{user.displayName}</h3>
             <p className="text-on-surface-variant">{user.email}</p>
-            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-surface-container-low text-xs font-bold text-on-surface-variant">{label} Mode</span>
+            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-surface-container-low text-xs font-bold text-on-surface-variant">{t('mode.' + mode)}</span>
           </div>
           <button
             onClick={onLogout}
             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors active:scale-95"
           >
             <LogOut size={18} />
-            Sign Out
+            {t('profile.signOut')}
           </button>
         </div>
       </div>
@@ -750,12 +879,12 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
         <div className="bg-white rounded-3xl p-8 border border-outline-variant/10 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-xl font-bold text-on-surface">{isLocalSource ? 'Local Folder' : 'Microsoft Teams'}</h3>
-              <p className="text-sm text-on-surface-variant">{formatSyncTime(lastSyncedAt, isSyncing)}</p>
+              <h3 className="text-xl font-bold text-on-surface">{isLocalSource ? t('profile.syncStatus.localFolder') : t('profile.syncStatus.teams')}</h3>
+              <p className="text-sm text-on-surface-variant">{formatSyncTime(lastSyncedAt, isSyncing, t)}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="font-bold text-sm text-on-surface">{isLocalSource ? 'Active' : 'Connected'}</span>
+              <span className="font-bold text-sm text-on-surface">{isLocalSource ? t('profile.syncStatus.active') : t('profile.syncStatus.connected')}</span>
             </div>
           </div>
           <button
@@ -764,7 +893,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
             className="w-full py-3 bg-primary text-on-primary rounded-2xl font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all active:scale-95 disabled:opacity-60"
           >
             <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-            {isSyncing ? 'Syncing...' : 'Sync Now'}
+            {isSyncing ? t('profile.syncStatus.syncing') : t('profile.syncStatus.syncNow')}
           </button>
         </div>
       )}
@@ -772,7 +901,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
       {/* Monitored Classes */}
       {canSync && classes.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">Monitored Classes</h3>
+          <h3 className="text-lg font-black text-on-surface uppercase tracking-widest">{t('profile.monitoredClasses.title')}</h3>
           <div className="space-y-3">
             {classes.map((cls: any) => (
               <div key={cls.id} className="bg-white rounded-2xl p-4 border border-outline-variant/10 flex items-center gap-4">
@@ -783,7 +912,7 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
                   <h4 className="font-bold text-sm text-on-surface">{cls.name}</h4>
                   <p className="text-xs text-on-surface-variant">{cls.channel}</p>
                 </div>
-                <span className="text-xs font-bold text-on-surface-variant">{cls.syncsToday} updates</span>
+                <span className="text-xs font-bold text-on-surface-variant">{cls.syncsToday} {t('profile.monitoredClasses.updates')}</span>
               </div>
             ))}
           </div>
@@ -796,8 +925,9 @@ const ProfileView = ({ user, onLogout, classes, onSync, isSyncing, lastSyncedAt,
 // --- Main App ---
 
 export default function App() {
+  const { t } = useLanguage();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source } = useSync();
+  const { assignments, classes, events, posts, aiSummary, isSyncing, isAnalyzing, lastSyncedAt, sync, analyze, source, toggleAssignment } = useSync();
   const [view, setView] = useState<View>('tasks');
   const [focusTimerOpen, setFocusTimerOpen] = useState(false);
 
@@ -822,7 +952,7 @@ export default function App() {
           >
             <Sparkles size={24} />
           </motion.div>
-          <p className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">Loading</p>
+          <p className="text-sm font-bold text-on-surface-variant uppercase tracking-widest">{t('common.loading')}</p>
         </motion.div>
       </div>
     );
@@ -835,20 +965,20 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'tasks':
-        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} />;
       case 'calendar':
         return <CalendarView events={events} assignments={assignments} />;
       case 'profile':
         return <ProfileView user={user} onLogout={logout} classes={classes} onSync={sync} isSyncing={isSyncing} lastSyncedAt={lastSyncedAt} source={source} />;
       default:
-        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} />;
+        return <TasksView assignments={assignments} posts={posts} aiSummary={aiSummary} isSyncing={isSyncing} isAnalyzing={isAnalyzing} lastSyncedAt={lastSyncedAt} onSync={sync} onAnalyze={analyze} onOpenFocusTimer={() => setFocusTimerOpen(true)} onToggleAssignment={toggleAssignment} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-surface selection:bg-primary/20">
       <Header
-        currentView={view === 'tasks' ? 'Home' : view.charAt(0).toUpperCase() + view.slice(1)}
+        currentView={view}
         user={user}
         onLogout={logout}
       />

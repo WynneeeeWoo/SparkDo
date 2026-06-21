@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, Sparkles, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import type { AuthView } from '../types';
 
 interface AuthFormsProps {
@@ -9,6 +10,7 @@ interface AuthFormsProps {
 }
 
 export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
+  const { t } = useLanguage();
   const { login, register, resetPassword } = useAuth();
   const [view, setView] = useState<AuthView>(defaultView);
 
@@ -25,7 +27,7 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
             <Sparkles size={32} />
           </div>
           <h1 className="text-3xl font-black text-on-surface tracking-tight">SparkDo</h1>
-          <p className="text-on-surface-variant mt-2 font-medium">Your scholastic command center</p>
+          <p className="text-on-surface-variant mt-2 font-medium">{t('auth.tagline')}</p>
         </motion.div>
 
         {/* Card */}
@@ -45,7 +47,7 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
                   view === tab ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
-                {tab === 'login' ? 'Sign In' : 'Sign Up'}
+                {tab === 'login' ? t('auth.signIn') : t('auth.signUp')}
                 {view === tab && (
                   <motion.div
                     layoutId="authTab"
@@ -84,7 +86,7 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
           transition={{ delay: 0.3 }}
           className="text-center text-xs text-on-surface-variant mt-8"
         >
-          Local accounts stay on this device. Microsoft login uses your school&apos;s secure identity system.
+          {t('auth.footer')}
         </motion.p>
       </div>
     </div>
@@ -94,6 +96,7 @@ export default function AuthForms({ defaultView = 'login' }: AuthFormsProps) {
 // --- Login Form ---
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
+  const { t } = useLanguage();
   const { login, loginWithMicrosoft, requestAdminConsent, msalEnabled, adminConsentRequired } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -106,13 +109,13 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
     e.preventDefault();
     setError('');
     if (!email.trim() || !password) {
-      setError('Please fill in all fields.');
+      setError(t('auth.error.fillAllFields'));
       return;
     }
     setIsSubmitting(true);
     const result = await login(email.trim(), password);
     if (!result.success) {
-      setError(result.error || 'Login failed.');
+      setError(result.error || t('auth.error.loginFailed'));
     }
     setIsSubmitting(false);
   };
@@ -131,7 +134,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
 
       <div className="space-y-1.5">
         <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">
-          Email
+          {t('auth.email')}
         </label>
         <div className="relative">
           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
@@ -139,7 +142,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@university.edu"
+            placeholder={t('auth.email.placeholder')}
             className="w-full pl-11 pr-4 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
@@ -148,7 +151,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
 
       <div className="space-y-1.5">
         <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">
-          Password
+          {t('auth.password')}
         </label>
         <div className="relative">
           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
@@ -156,7 +159,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
+            placeholder={t('auth.password.placeholder')}
             className="w-full pl-11 pr-12 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
@@ -172,7 +175,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
 
       <div className="flex justify-end">
         <button type="button" onClick={onForgot} className="text-xs font-bold text-primary hover:underline">
-          Forgot password?
+          {t('auth.forgotPassword')}
         </button>
       </div>
 
@@ -199,7 +202,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         <>
           <div className="relative flex items-center gap-4 py-2">
             <div className="h-px flex-1 bg-outline-variant/20"></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">or</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{t('auth.or')}</span>
             <div className="h-px flex-1 bg-outline-variant/20"></div>
           </div>
 
@@ -210,7 +213,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
               setMsalLoading(true);
               const result = await loginWithMicrosoft();
               if (!result.success) {
-                setError(result.error || 'Microsoft login failed.');
+                setError(result.error || t('auth.error.microsoftLoginFailed'));
               }
               setMsalLoading(false);
             }}
@@ -224,7 +227,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
             ) : (
               <>
                 <MicrosoftLogo />
-                Sign in with Microsoft
+                {t('auth.signInWithMicrosoft')}
               </>
             )}
           </button>
@@ -234,16 +237,16 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
               <div className="flex items-start gap-3">
                 <ShieldAlert size={20} className="text-amber-600 mt-0.5 shrink-0" />
                 <div className="space-y-2">
-                  <p className="text-sm font-bold text-amber-800">Admin Approval Required</p>
+                  <p className="text-sm font-bold text-amber-800">{t('auth.adminApprovalRequired')}</p>
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    Your school&apos;s IT admin must approve SparkDo before it can access Teams assignments and class data.
+                    {t('auth.adminApproval.description')}
                   </p>
                   <button
                     type="button"
                     onClick={requestAdminConsent}
                     className="text-xs font-bold text-amber-900 underline hover:no-underline"
                   >
-                    Send admin consent request →
+                    {t('auth.adminApproval.request')}
                   </button>
                 </div>
               </div>
@@ -258,6 +261,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
 // --- Register Form ---
 
 function RegisterForm() {
+  const { t } = useLanguage();
   const { register } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -274,22 +278,22 @@ function RegisterForm() {
     setError('');
 
     if (!name.trim() || !email.trim() || !password) {
-      setError('Please fill in all fields.');
+      setError(t('auth.error.fillAllFields'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('auth.error.passwordLength'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('auth.error.passwordMismatch'));
       return;
     }
 
     setIsSubmitting(true);
     const result = await register(name.trim(), email.trim(), password);
     if (!result.success) {
-      setError(result.error || 'Registration failed.');
+      setError(result.error || t('auth.error.registerFailed'));
     }
     setIsSubmitting(false);
   };
@@ -307,14 +311,14 @@ function RegisterForm() {
       )}
 
       <div className="space-y-1.5">
-        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Full Name</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">{t('auth.fullName')}</label>
         <div className="relative">
           <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Archivist Julian"
+            placeholder={t('auth.fullName.placeholder')}
             className="w-full pl-11 pr-4 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
@@ -322,14 +326,14 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Email</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">{t('auth.email')}</label>
         <div className="relative">
           <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@university.edu"
+            placeholder={t('auth.email.placeholder')}
             className="w-full pl-11 pr-4 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
@@ -337,14 +341,14 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Password</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">{t('auth.password')}</label>
         <div className="relative">
           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
           <input
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 6 characters"
+            placeholder={t('auth.password.minLength')}
             className="w-full pl-11 pr-12 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
@@ -378,20 +382,20 @@ function RegisterForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Confirm Password</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">{t('auth.confirmPassword')}</label>
         <div className="relative">
           <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
           <input
             type={showPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repeat your password"
+            placeholder={t('auth.confirmPassword.placeholder')}
             className="w-full pl-11 pr-4 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
             required
           />
         </div>
         {confirmPassword && password !== confirmPassword && (
-          <p className="text-xs text-red-500 font-medium ml-1">Passwords do not match</p>
+          <p className="text-xs text-red-500 font-medium ml-1">{t('auth.error.passwordMismatch')}</p>
         )}
       </div>
 
@@ -420,6 +424,7 @@ function RegisterForm() {
 // --- Forgot Password Form ---
 
 function ForgotForm({ onBack }: { onBack: () => void }) {
+  const { t } = useLanguage();
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -431,7 +436,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
     setError('');
     setSuccess(false);
     if (!email.trim()) {
-      setError('Please enter your email.');
+      setError(t('auth.error.enterEmail'));
       return;
     }
     setIsSubmitting(true);
@@ -439,7 +444,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
     if (result.success) {
       setSuccess(true);
     } else {
-      setError(result.error || 'Something went wrong.');
+      setError(result.error || t('auth.error.somethingWrong'));
     }
     setIsSubmitting(false);
   };
@@ -450,12 +455,12 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
         onClick={onBack}
         className="text-xs font-bold text-primary hover:underline mb-4 flex items-center gap-1"
       >
-        <ArrowRight size={14} className="rotate-180" /> Back to Sign In
+        <ArrowRight size={14} className="rotate-180" /> {t('auth.backToSignIn')}
       </button>
 
-      <h3 className="text-xl font-bold text-on-surface mb-2">Reset Password</h3>
+      <h3 className="text-xl font-bold text-on-surface mb-2">{t('auth.resetPassword')}</h3>
       <p className="text-sm text-on-surface-variant mb-6">
-        Enter your email and we’ll send you a reset link.
+        {t('auth.resetPassword.description')}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -468,19 +473,19 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
         {success && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 text-green-600 text-sm font-medium">
             <CheckCircle size={16} />
-            Reset link sent! Check your inbox.
+            {t('auth.resetPassword.success')}
           </div>
         )}
 
         <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Email</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">{t('auth.email')}</label>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant" size={18} />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@university.edu"
+              placeholder={t('auth.email.placeholder')}
               className="w-full pl-11 pr-4 py-3.5 bg-surface-container-low rounded-2xl text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-primary/30 transition-all text-sm font-medium"
               required
             />
@@ -497,7 +502,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
               <ArrowRight size={20} className="opacity-50" />
             </motion.div>
           ) : (
-            <>Send Reset Link <ArrowRight size={18} /></>
+            <>{t('auth.sendResetLink')} <ArrowRight size={18} /></>
           )}
         </button>
       </form>

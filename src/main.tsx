@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import { AuthProvider } from './contexts/AuthContext';
 import { SyncProvider } from './contexts/SyncContext';
 import { AccountModeProvider } from './contexts/AccountModeContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { MsalProvider } from '@azure/msal-react';
 import { getMsalInstance, hasMsalConfig } from './config/msalConfig';
 import App from './App.tsx';
@@ -11,13 +12,15 @@ import './index.css';
 const msalInstance = getMsalInstance();
 
 const AppWrapper = () => (
-  <AuthProvider>
-    <AccountModeProvider>
-      <SyncProvider>
-        <App />
-      </SyncProvider>
-    </AccountModeProvider>
-  </AuthProvider>
+  <LanguageProvider>
+    <AuthProvider>
+      <AccountModeProvider>
+        <SyncProvider>
+          <App />
+        </SyncProvider>
+      </AccountModeProvider>
+    </AuthProvider>
+  </LanguageProvider>
 );
 
 createRoot(document.getElementById('root')!).render(

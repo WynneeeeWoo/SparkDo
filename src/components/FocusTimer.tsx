@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Play, Pause, RotateCcw, Timer, Coffee } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface FocusTimerProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ const WORK_MINUTES = 25;
 const BREAK_MINUTES = 5;
 
 export default function FocusTimer({ isOpen, onClose }: FocusTimerProps) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState<'work' | 'break'>('work');
   const [timeLeft, setTimeLeft] = useState(WORK_MINUTES * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -89,8 +91,8 @@ export default function FocusTimer({ isOpen, onClose }: FocusTimerProps) {
                   {mode === 'work' ? <Timer size={20} /> : <Coffee size={20} />}
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-on-surface">Focus Studio</h3>
-                  <p className="text-xs text-on-surface-variant font-medium">{mode === 'work' ? 'Deep work session' : 'Take a breather'}</p>
+                  <h3 className="text-xl font-black text-on-surface">{t('focus.title')}</h3>
+                  <p className="text-xs text-on-surface-variant font-medium">{mode === 'work' ? t('focus.work.subtitle') : t('focus.break.subtitle')}</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 rounded-full hover:bg-surface-container-high transition-colors">
@@ -122,7 +124,7 @@ export default function FocusTimer({ isOpen, onClose }: FocusTimerProps) {
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-5xl font-black text-on-surface tracking-tighter">{formatTime(timeLeft)}</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mt-2">{mode === 'work' ? 'Focus' : 'Break'}</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mt-2">{mode === 'work' ? t('focus.work.label') : t('focus.break.label')}</span>
               </div>
             </div>
 
@@ -152,14 +154,14 @@ export default function FocusTimer({ isOpen, onClose }: FocusTimerProps) {
                 }}
                 className="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all active:scale-95"
               >
-                <span className="text-xs font-black">{mode === 'work' ? 'BRK' : 'WRK'}</span>
+                <span className="text-xs font-black">{mode === 'work' ? t('focus.break.button') : t('focus.work.button')}</span>
               </button>
             </div>
 
             {/* Session counter */}
             <div className="text-center">
               <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                {completedSessions} session{completedSessions !== 1 ? 's' : ''} completed
+                {t('focus.sessionsCompleted', { count: completedSessions, suffix: completedSessions !== 1 ? 's' : '' })}
               </p>
             </div>
           </motion.div>

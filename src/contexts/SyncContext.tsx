@@ -24,6 +24,12 @@ import {
 } from '../services/localSync';
 import { analyzeFiles } from '../services/aiAnalyzer';
 import { getAICache, saveAICache, clearAICache } from '../services/aiAnalysisCache';
+import {
+  getAssignmentOverrides,
+  saveAssignmentOverrides,
+  clearAssignmentOverrides,
+  applyAssignmentOverrides,
+} from '../services/assignmentOverrides';
 import type {
   SyncedAssignment,
   SyncedClass,
@@ -37,6 +43,7 @@ interface SyncContextValue extends SyncState {
   sync: () => Promise<void>;
   clear: () => void;
   analyze: () => Promise<void>;
+  toggleAssignment: (id: string) => void;
   source: 'teams' | 'local' | 'none';
   localUserId: string | null;
 }
@@ -151,6 +158,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     isLocalMode ? getLocalLastSyncedAt() : getLastSyncedAt()
   );
   const [error, setError] = useState<string | null>(null);
+  const [assignmentOverrides, setAssignmentOverrides] = useState<Record<string, boolean>>(() =>
+    getAssignmentOverrides()
+  );
 
   // Hydrate folder cache on mount
   useEffect(() => {
@@ -331,6 +341,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       clearCache();
     }
     clearAICache();
+    clearAssignmentOverrides();
     setFolderAssignments([]);
     setFolderClasses([]);
     setFolderEvents([]);
@@ -340,11 +351,24 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     setAiEventsRaw([]);
     setAiPostsRaw([]);
     setAiSummary(null);
+    setAssignmentOverrides({});
     setLastSyncedAt(null);
     setError(null);
   }, [isLocalMode]);
 
-  const assignments = useMemo(() => mergeById(folderAssignments, aiAssignmentsRaw), [folderAssignments, aiAssignmentsRaw]);
+  const toggleAssignment = useCallback((id: string) => {
+    setAssignmentOverrides((prev) => {
+      const current = prev[id] ?? false;
+      const next = { ...prev, [id]: !current };
+      saveAssignmentOverrides(next);
+      return next;
+    });
+  }, []);
+
+  const assignments = useMemo(
+    () => applyAssignmentOverrides(mergeById<SyncedAssignment>(folderAssignments, aiAssignmentsRaw), assignmentOverrides),
+    [folderAssignments, aiAssignmentsRaw, assignmentOverrides]
+  );
   const classes = useMemo(() => mergeById(folderClasses, aiClassesRaw), [folderClasses, aiClassesRaw]);
   const events = useMemo(() => mergeById(folderEvents, aiEventsRaw), [folderEvents, aiEventsRaw]);
   const posts = useMemo(() => mergeById(folderPosts, aiPostsRaw), [folderPosts, aiPostsRaw]);
@@ -370,6 +394,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         sync,
         clear,
         analyze,
+        toggleAssignment,
         source,
         localUserId,
       }}

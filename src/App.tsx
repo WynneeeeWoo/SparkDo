@@ -379,11 +379,16 @@ const TasksView = ({ assignments, posts, aiSummary, isSyncing, isAnalyzing, last
               key={todo.id}
               className="group flex items-center gap-3 p-4 rounded-2xl bg-white border border-outline-variant/10 shadow-sm hover:shadow-md transition-all"
             >
-              <div
+              <button
+                type="button"
+                onClick={() => toggleTodo(todo.id)}
+                disabled={isReadOnly}
+                aria-label={todo.completed ? `Mark ${todo.text} as incomplete` : `Mark ${todo.text} as complete`}
+                aria-pressed={todo.completed}
                 className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${todo.completed ? 'bg-primary border-primary text-white' : 'border-outline-variant/30'}`}
               >
                 {todo.completed && <Check size={14} strokeWidth={3} />}
-              </div>
+              </button>
               <span className={`flex-1 text-left font-bold text-sm ${todo.completed ? 'line-through text-on-surface-variant' : 'text-on-surface'}`}>
                 {todo.text}
               </span>
@@ -584,6 +589,12 @@ const CalendarView = ({ events, assignments, classes, localUserId }: { events: a
   const weekStart = getWeekStart();
   const weekEnd = getWeekEnd();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const isInCurrentMonth = (value: string) => { const date = new Date(value); return date.getFullYear() === currentYear && date.getMonth() === currentMonth; };
 
   const thisWeekTasks = assignments.filter((a: any) => {
     if (!a.dueDateTime || a.completed) return false;
@@ -596,13 +607,9 @@ const CalendarView = ({ events, assignments, classes, localUserId }: { events: a
     .sort((a, b) => new Date(a.dueDateTime).getTime() - new Date(b.dueDateTime).getTime())
     .slice(0, 8);
 
-  const eventDays = new Set(events.map((e: any) => new Date(e.startDateTime).getDate()));
-
-  const getAssignmentsForDay = (day: number) =>
-    assignments.filter((a: any) => a.dueDateTime && new Date(a.dueDateTime).getDate() === day);
-
-  const getEventsForDay = (day: number) =>
-    events.filter((e: any) => e.startDateTime && new Date(e.startDateTime).getDate() === day);
+  const eventDays = new Set(events.filter((e: any) => e.startDateTime && isInCurrentMonth(e.startDateTime)).map((e: any) => new Date(e.startDateTime).getDate()));
+  const getAssignmentsForDay = (day: number) => assignments.filter((a: any) => a.dueDateTime && isInCurrentMonth(a.dueDateTime) && new Date(a.dueDateTime).getDate() === day);
+  const getEventsForDay = (day: number) => events.filter((e: any) => e.startDateTime && isInCurrentMonth(e.startDateTime) && new Date(e.startDateTime).getDate() === day);
 
   const selectedDayItems = selectedDay !== null
     ? [...getAssignmentsForDay(selectedDay), ...getEventsForDay(selectedDay)]
@@ -653,14 +660,14 @@ const CalendarView = ({ events, assignments, classes, localUserId }: { events: a
           ))}
         </div>
         <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: 35 }).map((_, i) => {
-            const day = i - 4;
-            const isToday = day === new Date().getDate();
+          {Array.from({ length: firstDayOfMonth + daysInMonth }).map((_, i) => {
+            const day = i - firstDayOfMonth + 1;
+            const isToday = day === today.getDate();
             const hasEvent = eventDays.has(day);
             const dayAssignments = getAssignmentsForDay(day);
             const hasDeadline = dayAssignments.length > 0;
 
-            if (day < 1 || day > 30) return <div key={i} className="aspect-square" />;
+            if (day < 1 || day > daysInMonth) return <div key={i} className="aspect-square" />;
 
             const isInteractive = !isToday && (hasEvent || hasDeadline);
 

@@ -117,51 +117,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // --- Local Auth ---
 
   const login = useCallback(async (email: string, password: string) => {
-    await new Promise((r) => setTimeout(r, 600));
-    const users = getStoredUsers();
-    const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-
-    if (!found) {
-      return { success: false, error: 'No account found with this email.' };
-    }
-    if (found.password !== password) {
-      return { success: false, error: 'Incorrect password. Please try again.' };
-    }
-
-    const { password: _, ...userWithoutPassword } = found;
-    setUser(userWithoutPassword);
-    saveCurrentUser(userWithoutPassword);
-    setMsalAccount(null);
-    setAdminConsentRequired(false);
+    const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.error || 'Login failed.' };
+    setUser(result.user); saveCurrentUser(result.user); setMsalAccount(null); setAdminConsentRequired(false);
     return { success: true };
   }, []);
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    await new Promise((r) => setTimeout(r, 800));
-    const users = getStoredUsers();
-
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      return { success: false, error: 'An account with this email already exists.' };
-    }
-    if (password.length < 6) {
-      return { success: false, error: 'Password must be at least 6 characters.' };
-    }
-
-    const newUser: StoredUser = {
-      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
-      email: email.toLowerCase().trim(),
-      displayName: name.trim(),
-      password,
-    };
-
-    users.push(newUser);
-    saveStoredUsers(users);
-
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword);
-    saveCurrentUser(userWithoutPassword);
-    setMsalAccount(null);
-    setAdminConsentRequired(false);
+    const response = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, password }) });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.error || 'Registration failed.' };
+    setUser(result.user); saveCurrentUser(result.user); setMsalAccount(null); setAdminConsentRequired(false);
     return { success: true };
   }, []);
 

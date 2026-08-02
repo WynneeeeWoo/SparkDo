@@ -15,6 +15,7 @@ import {
   type SharePayload,
 } from './services/shareStore';
 
+import { authenticateUser, registerUser } from './services/authStore';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -205,6 +206,9 @@ function buildSyncPayload(subjects: LocalSubject[]): SyncPayload {
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
+
+app.post('/api/auth/register', (req, res) => { const { name, email, password } = req.body; if (!name || !email || typeof password !== 'string' || password.length < 6) return res.status(400).json({ error: 'Name, email, and a 6-character password are required.' }); try { res.status(201).json({ user: registerUser(name, email, password) }); } catch (error: any) { res.status(409).json({ error: error.message }); } });
+app.post('/api/auth/login', (req, res) => { const { email, password } = req.body; if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' }); const user = authenticateUser(email, password); if (!user) return res.status(401).json({ error: 'Invalid email or password.' }); res.json({ user }); });
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, dataRoot: DATA_ROOT });
